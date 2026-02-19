@@ -1,0 +1,63 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Events Calendar – Climate Solutions{% endblock %}
+
+{% block stylesheets %}
+    <style>
+        h1 { font-size: 1.75rem; color: #1b4332; margin-bottom: 1.5rem; }
+
+        #calendar-holder {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            padding: 1.5rem;
+        }
+
+        /* FullCalendar theme tweaks */
+        .fc-toolbar-title { color: #1b4332 !important; }
+        .fc-button-primary {
+            background-color: #2d6a4f !important;
+            border-color: #2d6a4f !important;
+        }
+        .fc-button-primary:hover {
+            background-color: #1b4332 !important;
+            border-color: #1b4332 !important;
+        }
+        .fc-button-active {
+            background-color: #1b4332 !important;
+            border-color: #1b4332 !important;
+        }
+        .fc-daygrid-event {
+            border-radius: 4px;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <h1>Events Calendar</h1>
+    <div id="calendar-holder"></div>
+{% endblock %}
+
+{% block javascripts %}
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            new FullCalendar.Calendar(document.getElementById('calendar-holder'), {
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                headerToolbar: {
+                    left:   'prev,next today',
+                    center: 'title',
+                    right:  'dayGridMonth,timeGridWeek,listMonth'
+                },
+                eventSources: [{
+                    url: '/fc-load-events',
+                    method: 'POST',
+                    extraParams: { filters: JSON.stringify({}) },
+                    failure: () => { console.error('Failed to load calendar events.'); }
+                }],
+                eventColor: '#2d6a4f',
+            }).render();
+        });
+    </script>
+{% endblock %}

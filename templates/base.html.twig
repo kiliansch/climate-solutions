@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Climate Solutions{% endblock %}</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f0f4f0;
+            color: #1b1b1b;
+        }
+        header {
+            background: #1b4332;
+            color: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        header a { color: #95d5b2; text-decoration: none; font-weight: 600; }
+        header a:hover { color: #fff; }
+        nav { margin-left: auto; display: flex; gap: 1.5rem; }
+        main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+        footer {
+            text-align: center;
+            padding: 1rem;
+            font-size: .875rem;
+            color: #555;
+            border-top: 1px solid #d8e8d8;
+            margin-top: 3rem;
+        }
+    </style>
+    {% block stylesheets %}{% endblock %}
+</head>
+<body>
+    <header>
+        <strong>🌱 Climate Solutions</strong>
+        <nav>
+            <a href="{{ path('app_calendar') }}">Calendar</a>
+        </nav>
+    </header>
+
+    <main>
+        {% block body %}{% endblock %}
+    </main>
+
+    <footer>&copy; {{ "now"|date("Y") }} Climate Solutions</footer>
+
+    {% block javascripts %}{% endblock %}
+</body>
+</html>
