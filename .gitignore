@@ -10,7 +10,7 @@
 ###< symfony/framework-bundle ###
 
 ###> Docker ###
-docker/nginx/ssl/
+/docker/nginx/ssl/*.pem
 ###< Docker ###
 
 ###> phpunit/phpunit ###
