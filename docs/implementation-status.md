@@ -23,14 +23,24 @@
 ### Phase 1 / Prompt 1.1 ✅
 - **User**: id, email, password, roles (JSON), status, name, createdAt, invitedBy (self ManyToOne)
 
+### Phase 1 / Prompt 1.2 ✅
+- **Invitation**: id, email, token (UUID, unique), role (ROLE_AGENT|ROLE_CLIENT), invitedBy (ManyToOne → User, not null), expiresAt (DateTimeImmutable), acceptedAt (nullable DateTimeImmutable)
+
 ## Services
 <!-- Updated by each prompt -->
+
+### Phase 1 / Prompt 1.2 ✅
+- **InvitationService::createInvitation(string $email, string $role, User $invitedBy): Invitation** — generates UUID token, sets expiry +7 days, persists, dispatches InvitationCreatedMessage
+- **InvitationService::acceptInvitation(string $token, string $plainPassword): User** — validates token not expired/accepted, creates hashed User with correct role, marks invitation accepted
 
 ## Controllers & Routes
 <!-- Updated by each prompt -->
 
 ## Messages (Messenger)
 <!-- Updated by each prompt -->
+
+### Phase 1 / Prompt 1.2 ✅
+- **InvitationCreatedMessage** { email: string, token: string, role: string }
 
 ## Pending / Open Questions
 - Calendar concept (person vs. event vs. location) — TBD
