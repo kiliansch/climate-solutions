@@ -25,6 +25,8 @@
 - **Slot**: id, type ENUM('day','time'), startAt (DateTimeImmutable), endAt (DateTimeImmutable), status ENUM('open','closed','booked','overridden') default 'open', location (nullable string), continent (nullable string), calendar (ManyToOne → Calendar, not null), createdAt (set on prePersist); composite index on (calendar_id, start_at, status)
 - **Unavailability**: id, startAt (DateTimeImmutable), endAt (DateTimeImmutable), reason (nullable string), calendar (ManyToOne → Calendar, not null), client (ManyToOne → User, not null)
 - **BookingRequest**: id, customerName (string), customerEmail (string), message (nullable string), status ENUM('pending','accepted','declined') default 'pending', slot (ManyToOne → Slot, not null), createdAt (DateTimeImmutable)
+- **NotificationSetting**: id, user (OneToOne → User, not null), emailEnabled (bool default true), inAppEnabled (bool default true)
+- **Notification**: id, user (ManyToOne → User, not null), message (string), readAt (nullable DateTimeImmutable), createdAt (DateTimeImmutable)
 
 ### Phase 1 / Prompt 1.1 ✅
 - **User**: id, email, password, roles (JSON), status, name, createdAt, invitedBy (self ManyToOne)
@@ -92,6 +94,9 @@
 
 ### Phase 3 / Prompt 3.1 ✅
 - **BookingRequestCreatedMessage** { bookingRequestId: int }
+
+### Phase 4 / Prompt 4.1 ✅
+- **BookingRequestCreatedHandler** — handles `BookingRequestCreatedMessage`; loads `BookingRequest` by id; loads agent's `NotificationSetting` (defaults to emailEnabled=true, inAppEnabled=true if not set); if emailEnabled: sends `BookingRequestEmail` to agent via `MailerInterface`; if inAppEnabled: persists a new `Notification` for the agent
 
 ## Pending / Open Questions
 - Multi-calendar per client — TBD
