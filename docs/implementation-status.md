@@ -18,7 +18,11 @@
 - Notifications (email + in-app) are user-configurable per agent
 
 ## Entities
-<!-- Updated by each prompt -->
+
+- **User**: id, email, password, roles (JSON), status, name, createdAt, invitedBy (self ManyToOne)
+- **Invitation**: id, email, token (UUID, unique), role (ROLE_AGENT|ROLE_CLIENT), invitedBy (ManyToOne → User, not null), expiresAt (DateTimeImmutable), acceptedAt (nullable DateTimeImmutable)
+- **Calendar**: id, name, displayMode ENUM('timeslot','dayslot') default 'dayslot', client (ManyToOne → User, not null), agent (ManyToOne → User, not null), publicToken (UUID string, unique, generated on prePersist), slots (OneToMany → Slot, EXTRA_LAZY), createdAt (set on prePersist)
+- **Slot**: id, type ENUM('day','time'), startAt (DateTimeImmutable), endAt (DateTimeImmutable), status ENUM('open','closed','booked','overridden') default 'open', location (nullable string), continent (nullable string), calendar (ManyToOne → Calendar, not null), createdAt (set on prePersist); composite index on (calendar_id, start_at, status)
 
 ### Phase 1 / Prompt 1.1 ✅
 - **User**: id, email, password, roles (JSON), status, name, createdAt, invitedBy (self ManyToOne)
@@ -27,14 +31,23 @@
 - **Invitation**: id, email, token (UUID, unique), role (ROLE_AGENT|ROLE_CLIENT), invitedBy (ManyToOne → User, not null), expiresAt (DateTimeImmutable), acceptedAt (nullable DateTimeImmutable)
 
 ## Services
-<!-- Updated by each prompt -->
+
+- **InvitationService**: `createInvitation(string $email, string $role, User $invitedBy): Invitation`, `acceptInvitation(string $token, string $plainPassword): User`
 
 ### Phase 1 / Prompt 1.2 ✅
 - **InvitationService::createInvitation(string $email, string $role, User $invitedBy): Invitation** — generates UUID token, sets expiry +7 days, persists, dispatches InvitationCreatedMessage
 - **InvitationService::acceptInvitation(string $token, string $plainPassword): User** — validates token not expired/accepted, creates hashed User with correct role, marks invitation accepted
 
+### Phase 2 / Prompt 2.1 ✅
+- **CalendarRepository::findByAgent(User $agent): Calendar[]** — returns all calendars for a given agent ordered by createdAt DESC
+- **CalendarRepository::findByPublicToken(string $token): ?Calendar** — returns calendar matching the public token or null
+- **SlotRepository::findOpenByCalendar(Calendar $calendar): Slot[]** — returns all open slots for a calendar ordered by startAt ASC
+- **SlotRepository::findByCalendarAndDateRange(Calendar $calendar, DateTimeImmutable $from, DateTimeImmutable $to): Slot[]** — returns slots within date range ordered by startAt ASC
+
 ## Controllers & Routes
-<!-- Updated by each prompt -->
+
+- **LoginController**: `GET+POST /login`, `GET /logout`
+- **InvitationController**: `GET+POST /invite/accept/{token}`
 
 ### Phase 1 / Prompt 1.3 ✅
 - **LoginController**: GET+POST `/login` (firewall handles authentication), GET `/logout` (firewall intercepts)
@@ -42,11 +55,11 @@
 - **AcceptInvitationDTO**: `password` field with `NotBlank` + `Length(min:8)` constraints; mapped via `#[MapRequestPayload]`
 
 ## Messages (Messenger)
-<!-- Updated by each prompt -->
+
+- **InvitationCreatedMessage**: `{ email: string, token: string, role: string }`
 
 ### Phase 1 / Prompt 1.2 ✅
 - **InvitationCreatedMessage** { email: string, token: string, role: string }
 
 ## Pending / Open Questions
-- Calendar concept (person vs. event vs. location) — TBD
 - Multi-calendar per client — TBD
