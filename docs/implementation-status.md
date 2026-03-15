@@ -24,6 +24,7 @@
 - **Calendar**: id, name, displayMode ENUM('timeslot','dayslot') default 'dayslot', client (ManyToOne → User, not null), agent (ManyToOne → User, not null), publicToken (UUID string, unique, generated on prePersist), slots (OneToMany → Slot, EXTRA_LAZY), createdAt (set on prePersist)
 - **Slot**: id, type ENUM('day','time'), startAt (DateTimeImmutable), endAt (DateTimeImmutable), status ENUM('open','closed','booked','overridden') default 'open', location (nullable string), continent (nullable string), calendar (ManyToOne → Calendar, not null), createdAt (set on prePersist); composite index on (calendar_id, start_at, status)
 - **Unavailability**: id, startAt (DateTimeImmutable), endAt (DateTimeImmutable), reason (nullable string), calendar (ManyToOne → Calendar, not null), client (ManyToOne → User, not null)
+- **BookingRequest**: id, customerName (string), customerEmail (string), message (nullable string), status ENUM('pending','accepted','declined') default 'pending', slot (ManyToOne → Slot, not null), createdAt (DateTimeImmutable)
 
 ### Phase 1 / Prompt 1.1 ✅
 - **User**: id, email, password, roles (JSON), status, name, createdAt, invitedBy (self ManyToOne)
@@ -67,12 +68,21 @@
   - POST `/agent/calendars/{id}/slots` → open slot using `SlotDTO` (type, startAt, endAt, location, continent); constraints: `type` in `['day','time']`, `startAt` before `endAt`
   - GET `/agent/calendars/{id}/share` → returns absolute public URL built from `calendar.publicToken` via `calendar_public_view` route
 
+### Phase 3 / Prompt 3.1 ✅
+- **BookingService::createRequest(Slot $slot, BookingRequestDTO $dto): BookingRequest** — throws `\DomainException` if slot status != 'open', persists BookingRequest with status 'pending', dispatches BookingRequestCreatedMessage
+- **BookingService::acceptRequest(BookingRequest $request, User $agent): void** — validates agent owns calendar (throws `AccessDeniedException` if not), sets request status 'accepted', slot status 'booked', all other pending requests for same slot to 'declined', single flush
+- **BookingService::declineRequest(BookingRequest $request, User $agent): void** — validates agent ownership, sets status 'declined', flush
+
 ## Messages (Messenger)
 
 - **InvitationCreatedMessage**: `{ email: string, token: string, role: string }`
+- **BookingRequestCreatedMessage**: `{ bookingRequestId: int }`
 
 ### Phase 1 / Prompt 1.2 ✅
 - **InvitationCreatedMessage** { email: string, token: string, role: string }
+
+### Phase 3 / Prompt 3.1 ✅
+- **BookingRequestCreatedMessage** { bookingRequestId: int }
 
 ## Pending / Open Questions
 - Multi-calendar per client — TBD
