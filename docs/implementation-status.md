@@ -59,6 +59,14 @@
 - **InvitationController**: GET+POST `/invite/accept/{token}` → renders password-setup form / calls `InvitationService::acceptInvitation()`, redirects to `/login` on success
 - **AcceptInvitationDTO**: `password` field with `NotBlank` + `Length(min:8)` constraints; mapped via `#[MapRequestPayload]`
 
+### Phase 2 / Prompt 2.3 ✅
+- **Agent\CalendarController** protected by `#[IsGranted('ROLE_AGENT')]`:
+  - GET `/agent/calendars` → list agent's calendars via `CalendarRepository::findByAgent()`
+  - POST `/agent/calendars` → create calendar using `CalendarDTO` (name, displayMode, clientId)
+  - GET `/agent/calendars/{id}` → view calendar + its open slots via `SlotRepository::findOpenByCalendar()`
+  - POST `/agent/calendars/{id}/slots` → open slot using `SlotDTO` (type, startAt, endAt, location, continent); constraints: `type` in `['day','time']`, `startAt` before `endAt`
+  - GET `/agent/calendars/{id}/share` → returns absolute public URL built from `calendar.publicToken` via `calendar_public_view` route
+
 ## Messages (Messenger)
 
 - **InvitationCreatedMessage**: `{ email: string, token: string, role: string }`
