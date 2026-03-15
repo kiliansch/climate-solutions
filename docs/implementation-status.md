@@ -73,6 +73,15 @@
 - **BookingService::acceptRequest(BookingRequest $request, User $agent): void** — validates agent owns calendar (throws `AccessDeniedException` if not), sets request status 'accepted', slot status 'booked', all other pending requests for same slot to 'declined', single flush
 - **BookingService::declineRequest(BookingRequest $request, User $agent): void** — validates agent ownership, sets status 'declined', flush
 
+### Phase 3 / Prompt 3.2 ✅
+- **Public\CalendarController** (no auth required):
+  - GET `/c/{token}` (`calendar_public_view`) → `CalendarRepository::findByPublicToken()`, 404 if not found; loads open slots via `SlotRepository::findOpenByCalendar()`; renders `templates/public/calendar/show.html.twig`
+  - POST `/c/{token}/book` (`calendar_public_book`) → validates `BookingRequestDTO` via `#[MapRequestPayload]` (NotBlank on customerName+customerEmail, valid Email); reads `slotId` from request body; calls `BookingService::createRequest()`; redirects to `calendar_public_view` with flash success
+- **Agent\BookingController** protected by `#[IsGranted('ROLE_AGENT')]`:
+  - GET `/agent/bookings` (`agent_booking_list`) → lists all booking requests for agent via `BookingRequestRepository::findByAgent()`
+  - PATCH `/agent/bookings/{id}/accept` (`agent_booking_accept`) → `BookingService::acceptRequest()`; redirects with flash success
+  - PATCH `/agent/bookings/{id}/decline` (`agent_booking_decline`) → `BookingService::declineRequest()`; redirects with flash success
+
 ## Messages (Messenger)
 
 - **InvitationCreatedMessage**: `{ email: string, token: string, role: string }`

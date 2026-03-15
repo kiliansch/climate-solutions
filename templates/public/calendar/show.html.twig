@@ -1,0 +1,56 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ calendar.name }} – Climate Solutions{% endblock %}
+
+{% block body %}
+<main>
+    <h1>{{ calendar.name }}</h1>
+
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="flash flash--{{ type }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {% if slots is empty %}
+        <p>No available slots at the moment. Please check back later.</p>
+    {% else %}
+        <div class="slots">
+            {% for slot in slots %}
+                <div class="slot-card">
+                    <div class="slot-card__dates">
+                        <strong>{{ slot.startAt|date('D, d M Y') }}</strong>
+                        {% if slot.type == 'time' %}
+                            &mdash; {{ slot.startAt|date('H:i') }} to {{ slot.endAt|date('H:i') }}
+                        {% endif %}
+                    </div>
+                    {% if slot.location %}
+                        <div class="slot-card__location">{{ slot.location }}</div>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('calendar_public_book', {token: calendar.publicToken}) }}" class="booking-form">
+                        <input type="hidden" name="slotId" value="{{ slot.id }}">
+
+                        <div class="form-group">
+                            <label for="name-{{ slot.id }}">Your name</label>
+                            <input type="text" id="name-{{ slot.id }}" name="customerName" required maxlength="255">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email-{{ slot.id }}">Email address</label>
+                            <input type="email" id="email-{{ slot.id }}" name="customerEmail" required maxlength="255">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message-{{ slot.id }}">Message (optional)</label>
+                            <textarea id="message-{{ slot.id }}" name="message" rows="3"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn">Request this slot</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</main>
+{% endblock %}
