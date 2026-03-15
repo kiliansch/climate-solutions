@@ -84,6 +84,14 @@
   - PATCH `/agent/bookings/{id}/accept` (`agent_booking_accept`) → `BookingService::acceptRequest()`; redirects with flash success
   - PATCH `/agent/bookings/{id}/decline` (`agent_booking_decline`) → `BookingService::declineRequest()`; redirects with flash success
 
+### Phase 5 / Prompt 5.1 ✅
+- **Admin\UserController** protected by `#[IsGranted('ROLE_ADMIN')]`:
+  - GET `/admin/agents` (`admin_agent_list`) → lists all ROLE_AGENT users via `UserRepository::findByRole('ROLE_AGENT')`; renders `templates/admin/users/agents.html.twig` with name, email, status, createdAt
+  - PATCH `/admin/users/{id}/block` (`admin_user_block`) → sets `user.status = 'blocked'`, flush, flash success, redirect to `admin_agent_list`
+  - PATCH `/admin/users/{id}/unblock` (`admin_user_unblock`) → sets `user.status = 'active'`, flush, flash success, redirect to `admin_agent_list`
+  - POST `/admin/invite` (`admin_invite`) → validates `InviteUserDTO` (NotBlank + valid Email on `email`) via `#[MapRequestPayload]`; calls `InvitationService::createInvitation()` with `role = 'ROLE_AGENT'`; flash success, redirect to `admin_agent_list`
+- **UserRepository::findByRole(string $role): User[]** — queries users whose JSON roles column contains the given role
+
 ## Messages (Messenger)
 
 - **InvitationCreatedMessage**: `{ email: string, token: string, role: string }`

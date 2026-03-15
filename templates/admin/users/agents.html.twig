@@ -1,0 +1,57 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Agents — Admin{% endblock %}
+
+{% block body %}
+<h1>Agents</h1>
+
+{% for message in app.flashes('success') %}
+    <p class="flash flash--success">{{ message }}</p>
+{% endfor %}
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for agent in agents %}
+        <tr>
+            <td>{{ agent.name }}</td>
+            <td>{{ agent.email }}</td>
+            <td>{{ agent.status }}</td>
+            <td>{{ agent.createdAt|date('Y-m-d') }}</td>
+            <td>
+                {% if agent.status == 'active' %}
+                    <form method="post" action="{{ path('admin_user_block', {id: agent.id}) }}">
+                        <input type="hidden" name="_method" value="PATCH">
+                        <button type="submit">Block</button>
+                    </form>
+                {% else %}
+                    <form method="post" action="{{ path('admin_user_unblock', {id: agent.id}) }}">
+                        <input type="hidden" name="_method" value="PATCH">
+                        <button type="submit">Unblock</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5">No agents found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Invite a new agent</h2>
+<form method="post" action="{{ path('admin_invite') }}">
+    <label for="email">Email address</label>
+    <input type="email" id="email" name="email" required>
+    <button type="submit">Send invitation</button>
+</form>
+{% endblock %}
