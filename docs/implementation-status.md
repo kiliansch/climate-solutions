@@ -36,6 +36,11 @@
 ## Controllers & Routes
 <!-- Updated by each prompt -->
 
+### Phase 1 / Prompt 1.3 ✅
+- **LoginController**: GET+POST `/login` (firewall handles authentication), GET `/logout` (firewall intercepts)
+- **InvitationController**: GET+POST `/invite/accept/{token}` → renders password-setup form / calls `InvitationService::acceptInvitation()`, redirects to `/login` on success
+- **AcceptInvitationDTO**: `password` field with `NotBlank` + `Length(min:8)` constraints; mapped via `#[MapRequestPayload]`
+
 ## Messages (Messenger)
 <!-- Updated by each prompt -->
 
