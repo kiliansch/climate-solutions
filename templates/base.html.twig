@@ -21,8 +21,43 @@
         }
         header a { color: #95d5b2; text-decoration: none; font-weight: 600; }
         header a:hover { color: #fff; }
-        nav { margin-left: auto; display: flex; gap: 1.5rem; }
+        nav { margin-left: auto; display: flex; align-items: center; gap: 1.5rem; }
+        .user-info { display: flex; align-items: center; gap: .75rem; font-size: .875rem; }
+        .role-badge {
+            display: inline-block;
+            padding: .2rem .55rem;
+            border-radius: 9999px;
+            font-size: .7rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .role-badge.admin  { background: #b91c1c; color: #fff; }
+        .role-badge.agent  { background: #1d4ed8; color: #fff; }
+        .role-badge.client { background: #15803d; color: #fff; }
+        .btn-logout {
+            padding: .35rem .75rem;
+            background: transparent;
+            border: 1px solid #95d5b2;
+            border-radius: 4px;
+            color: #95d5b2;
+            font-size: .875rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-logout:hover { background: #95d5b2; color: #1b4332; }
         main { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+        .flash-list { list-style: none; margin-bottom: 1.25rem; }
+        .flash-list li {
+            padding: .75rem 1rem;
+            border-radius: 4px;
+            margin-bottom: .5rem;
+            font-size: .9rem;
+        }
+        .flash-success { background: #d1fae5; color: #065f46; }
+        .flash-error   { background: #fee2e2; color: #991b1b; }
+        .flash-info    { background: #dbeafe; color: #1e40af; }
         footer {
             text-align: center;
             padding: 1rem;
@@ -38,11 +73,41 @@
     <header>
         <strong>🌱 Climate Solutions</strong>
         <nav>
-            <a href="{{ path('app_calendar') }}">Calendar</a>
+            {% if is_granted('ROLE_AGENT') %}
+                <a href="{{ path('agent_calendar_list') }}">My Calendars</a>
+                <a href="{{ path('agent_booking_list') }}">Booking Requests</a>
+            {% endif %}
+            {% if is_granted('ROLE_ADMIN') %}
+                <a href="{{ path('admin_agent_list') }}">Agents</a>
+            {% endif %}
+            {% if is_granted('ROLE_CLIENT') and not is_granted('ROLE_AGENT') and not is_granted('ROLE_ADMIN') %}
+                <a href="/client/calendar">My Calendar</a>
+            {% endif %}
+            {% if app.user %}
+                <span class="user-info">
+                    <span>{{ app.user.name ?? app.user.userIdentifier }}</span>
+                    {% if is_granted('ROLE_ADMIN') %}
+                        <span class="role-badge admin">Admin</span>
+                    {% elseif is_granted('ROLE_AGENT') %}
+                        <span class="role-badge agent">Agent</span>
+                    {% else %}
+                        <span class="role-badge client">Client</span>
+                    {% endif %}
+                    <a class="btn-logout" href="{{ path('app_logout') }}">Logout</a>
+                </span>
+            {% endif %}
         </nav>
     </header>
 
     <main>
+        {% for type, messages in app.flashes(['success', 'error', 'info']) %}
+            <ul class="flash-list">
+                {% for message in messages %}
+                    <li class="flash-{{ type }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+
         {% block body %}{% endblock %}
     </main>
 

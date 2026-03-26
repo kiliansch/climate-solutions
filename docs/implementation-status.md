@@ -123,3 +123,10 @@
 
 ## Pending / Open Questions
 - Multi-calendar per client — TBD
+
+## Templates
+
+### Phase 6 / Prompt 6.1 ✅
+- **templates/base.html.twig** — HTML5 boilerplate; role-aware nav (ROLE_AGENT: My Calendars + Booking Requests, ROLE_ADMIN: Agents, ROLE_CLIENT: My Calendar); user name + role badge (Admin/Agent/Client) in header; logout link; `{% block stylesheets %}`, `{% block body %}`, `{% block javascripts %}`; flash message display (success / error / info styles)
+- **templates/auth/login.html.twig** — extends base; email + password fields; submit "Sign In"; link to `/register`; displays `error.messageKey|trans` authentication error if present
+- **templates/auth/accept_invitation.html.twig** — extends base; invited email shown as read-only field; password + confirm password fields with client-side match validation; submit "Activate Account"; 7-day expiry notice; posts to `app_invite_accept_post`
