@@ -106,5 +106,13 @@
 ### Phase 4 / Prompt 4.1 ✅
 - **BookingRequestCreatedHandler** — handles `BookingRequestCreatedMessage`; loads `BookingRequest` by id; loads agent's `NotificationSetting` (defaults to emailEnabled=true, inAppEnabled=true if not set); if emailEnabled: sends `BookingRequestEmail` to agent via `MailerInterface`; if inAppEnabled: persists a new `Notification` for the agent
 
+### Gap / Prompt R1 ✅
+- **RegistrationController**: GET+POST `/register`
+  - GET → renders `templates/auth/register.html.twig`
+  - POST → validates `RegistrationDTO` via `#[MapRequestPayload]`; calls `RegistrationService::registerAgent()`; flash success + redirect to `/login`; catches `\DomainException` (duplicate email) and re-renders form with error
+- **RegistrationService::registerAgent(RegistrationDTO $dto): User** — checks `UserRepository::findOneByEmail()` and throws `\DomainException('Email already in use')` if found; creates User with `roles=['ROLE_AGENT']`, `status='active'`, hashed password; persists and flushes
+- **templates/auth/register.html.twig** — extends `base.html.twig`; form with name, email, password, password confirmation (client-side match check); "Create Account" submit button; link to `/login`; displays flash messages and `DomainException` errors
+- **UserRepository::findOneByEmail(string $email): ?User** — added explicit method delegating to `findOneBy`
+
 ## Pending / Open Questions
 - Multi-calendar per client — TBD
