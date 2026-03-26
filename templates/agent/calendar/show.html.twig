@@ -1,0 +1,214 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ calendar.name }} — Climate Solutions{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .page-header { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; color: #1b4332; margin-bottom: .25rem; }
+    .page-header .meta { font-size: .875rem; color: #555; }
+    .back-link { font-size: .85rem; color: #059669; text-decoration: none; display: inline-block; margin-bottom: 1rem; }
+    .back-link:hover { text-decoration: underline; }
+    .layout { display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; align-items: start; }
+    .main-col { min-width: 0; }
+    h2 { font-size: 1.125rem; font-weight: 700; color: #1b4332; margin: 1.5rem 0 .75rem; }
+    h2:first-child { margin-top: 0; }
+    .share-box { background: #fff; border-radius: 6px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 1.5rem; display: flex; align-items: center; gap: .75rem; }
+    .share-box input[type="text"] { flex: 1; padding: .4rem .6rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .85rem; background: #f9f9f9; color: #374151; }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .badge-timeslot { background: #dbeafe; color: #1e40af; }
+    .badge-dayslot  { background: #d1fae5; color: #065f46; }
+    .badge-day      { background: #fef3c7; color: #92400e; }
+    .badge-time     { background: #ede9fe; color: #5b21b6; }
+    .badge-open     { background: #d1fae5; color: #065f46; }
+    .badge-closed   { background: #f3f4f6; color: #6b7280; }
+    .badge-booked   { background: #dbeafe; color: #1e40af; }
+    .badge-overridden { background: #fee2e2; color: #991b1b; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th, td { padding: .65rem .9rem; text-align: left; font-size: .875rem; border-bottom: 1px solid #e8f0e8; }
+    th { background: #1b4332; color: #fff; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .slot-form { background: #fff; border-radius: 6px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; margin-bottom: .85rem; }
+    .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-field label { display: block; font-size: .78rem; font-weight: 600; margin-bottom: .25rem; color: #374151; }
+    .form-field input,
+    .form-field select { width: 100%; padding: .4rem .6rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .875rem; background: #fff; }
+    .btn { display: inline-block; padding: .4rem .85rem; border-radius: 4px; font-size: .85rem; font-weight: 600; cursor: pointer; text-decoration: none; border: none; }
+    .btn-primary { background: #1b4332; color: #fff; }
+    .btn-primary:hover { background: #155724; }
+    .btn-copy { background: #059669; color: #fff; white-space: nowrap; }
+    .btn-copy:hover { background: #047857; }
+    .btn-copy.copied { background: #6b7280; cursor: default; }
+    .sidebar-card { background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.1); padding: 1.25rem; }
+    .sidebar-card h3 { font-size: 1rem; font-weight: 700; color: #1b4332; margin-bottom: .75rem; }
+    .sidebar-card p { font-size: .875rem; color: #555; margin-bottom: .75rem; }
+    .sidebar-card .info-row { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: .4rem; }
+    .sidebar-card .info-row .label { font-weight: 600; color: #374151; }
+    .sidebar-invite { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e8f0e8; }
+    .sidebar-invite input[type="email"] { width: 100%; padding: .4rem .6rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .875rem; margin-bottom: .5rem; }
+    .btn-full { width: 100%; text-align: center; padding: .5rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<a class="back-link" href="{{ path('agent_calendar_list') }}">← Back to My Calendars</a>
+
+<div class="layout">
+    <div class="main-col">
+        <div class="page-header">
+            <div>
+                <h1>{{ calendar.name }}</h1>
+                <span class="meta">
+                    Client: <strong>{{ calendar.client.name ?? calendar.client.email }}</strong>
+                    &nbsp;·&nbsp;
+                    <span class="badge badge-{{ calendar.displayMode }}">{{ calendar.displayMode }}</span>
+                    &nbsp;·&nbsp;
+                    Created {{ calendar.createdAt|date('Y-m-d') }}
+                </span>
+            </div>
+        </div>
+
+        {# Share URL #}
+        <h2>Public Share Link</h2>
+        <div class="share-box">
+            <input
+                type="text"
+                readonly
+                id="share-url"
+                value="{{ url('calendar_public_view', {token: calendar.publicToken}) }}"
+                onclick="this.select()"
+            >
+            <button
+                class="btn btn-copy"
+                type="button"
+                onclick="copyShareUrl(this, document.getElementById('share-url').value)"
+            >Copy Link</button>
+        </div>
+
+        {# Slots table #}
+        <h2>Slots</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Continent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for slot in slots %}
+                <tr>
+                    <td><span class="badge badge-{{ slot.type }}">{{ slot.type }}</span></td>
+                    <td>{{ slot.startAt|date('Y-m-d H:i') }}</td>
+                    <td>{{ slot.endAt|date('Y-m-d H:i') }}</td>
+                    <td><span class="badge badge-{{ slot.status }}">{{ slot.status }}</span></td>
+                    <td>{{ slot.location ?? '—' }}</td>
+                    <td>{{ slot.continent ?? '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">No slots yet. Add one below.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {# Add slot form #}
+        <h2>Add Slot</h2>
+        <div class="slot-form">
+            <form method="post" action="{{ path('agent_calendar_slot_create', {id: calendar.id}) }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="type">Type</label>
+                        <select id="type" name="type" required>
+                            <option value="day">Day</option>
+                            <option value="time">Time</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="continent">Continent</label>
+                        <select id="continent" name="continent">
+                            <option value="">— any —</option>
+                            <option value="Africa">Africa</option>
+                            <option value="Antarctica">Antarctica</option>
+                            <option value="Asia">Asia</option>
+                            <option value="Europe">Europe</option>
+                            <option value="North America">North America</option>
+                            <option value="Oceania">Oceania</option>
+                            <option value="South America">South America</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="startAt">Start Date/Time</label>
+                        <input type="datetime-local" id="startAt" name="startAt" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="endAt">End Date/Time</label>
+                        <input type="datetime-local" id="endAt" name="endAt" required>
+                    </div>
+                </div>
+                <div class="form-row form-row-3">
+                    <div class="form-field" style="grid-column: 1 / -1;">
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location" maxlength="255" placeholder="e.g. Nairobi, Kenya">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Slot</button>
+            </form>
+        </div>
+    </div>
+
+    {# Sidebar #}
+    <aside>
+        <div class="sidebar-card">
+            <h3>Calendar Info</h3>
+            <div class="info-row">
+                <span class="label">ID</span>
+                <span>#{{ calendar.id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Mode</span>
+                <span class="badge badge-{{ calendar.displayMode }}">{{ calendar.displayMode }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Client</span>
+                <span>{{ calendar.client.name ?? calendar.client.email }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Open slots</span>
+                <span>{{ slots|length }}</span>
+            </div>
+
+            <div class="sidebar-invite">
+                <h3>Invite a Client</h3>
+                <p>Send an invitation to a new client to access this calendar.</p>
+                <a class="btn btn-primary btn-full" href="{{ path('agent_invite_client') }}">Invite Client</a>
+            </div>
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function copyShareUrl(button, url) {
+    navigator.clipboard.writeText(url).then(function () {
+        var original = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        button.disabled = true;
+        setTimeout(function () {
+            button.textContent = original;
+            button.classList.remove('copied');
+            button.disabled = false;
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}

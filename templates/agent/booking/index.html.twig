@@ -1,0 +1,84 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Booking Requests — Climate Solutions{% endblock %}
+
+{% block stylesheets %}
+<style>
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1b4332; margin-bottom: 1.25rem; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th, td { padding: .75rem 1rem; text-align: left; font-size: .875rem; border-bottom: 1px solid #e8f0e8; vertical-align: middle; }
+    th { background: #1b4332; color: #fff; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .badge-pending  { background: #fef3c7; color: #92400e; }
+    .badge-accepted { background: #d1fae5; color: #065f46; }
+    .badge-declined { background: #fee2e2; color: #991b1b; }
+    .message-cell { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #555; font-size: .8rem; }
+    .actions { display: flex; gap: .4rem; }
+    .btn { display: inline-block; padding: .3rem .65rem; border-radius: 4px; font-size: .78rem; font-weight: 600; cursor: pointer; text-decoration: none; border: none; }
+    .btn-accept  { background: #059669; color: #fff; }
+    .btn-accept:hover  { background: #047857; }
+    .btn-decline { background: #dc2626; color: #fff; }
+    .btn-decline:hover { background: #b91c1c; }
+    .slot-info { font-size: .8rem; color: #374151; }
+    .slot-info .slot-date { font-weight: 600; }
+    .empty-row td { color: #6b7280; font-style: italic; text-align: center; padding: 2rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<h1>Booking Requests</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Customer</th>
+            <th>Email</th>
+            <th>Message</th>
+            <th>Requested Slot</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for bookingRequest in bookingRequests %}
+        <tr>
+            <td>{{ bookingRequest.customerName }}</td>
+            <td>{{ bookingRequest.customerEmail }}</td>
+            <td class="message-cell" title="{{ bookingRequest.message }}">
+                {{ bookingRequest.message ?? '—' }}
+            </td>
+            <td>
+                <div class="slot-info">
+                    <span class="slot-date">{{ bookingRequest.slot.startAt|date('Y-m-d') }}</span><br>
+                    <span>{{ bookingRequest.slot.startAt|date('H:i') }} – {{ bookingRequest.slot.endAt|date('H:i') }}</span>
+                </div>
+            </td>
+            <td>
+                <span class="badge badge-{{ bookingRequest.status }}">{{ bookingRequest.status }}</span>
+            </td>
+            <td>
+                {% if bookingRequest.status == 'pending' %}
+                <div class="actions">
+                    <form method="post" action="{{ path('agent_booking_accept', {id: bookingRequest.id}) }}">
+                        <input type="hidden" name="_method" value="PATCH">
+                        <button type="submit" class="btn btn-accept">Accept</button>
+                    </form>
+                    <form method="post" action="{{ path('agent_booking_decline', {id: bookingRequest.id}) }}">
+                        <input type="hidden" name="_method" value="PATCH">
+                        <button type="submit" class="btn btn-decline">Decline</button>
+                    </form>
+                </div>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+            <td colspan="6">No booking requests yet.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

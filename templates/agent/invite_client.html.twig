@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Invite a Client — Climate Solutions{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .invite-wrapper { max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1b4332; margin-bottom: .5rem; }
+    .subtitle { color: #555; font-size: .9rem; margin-bottom: 1.5rem; }
+    .back-link { font-size: .85rem; color: #059669; text-decoration: none; display: inline-block; margin-bottom: 1.25rem; }
+    .back-link:hover { text-decoration: underline; }
+    .card { background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.1); padding: 1.75rem; }
+    .form-field { margin-bottom: 1rem; }
+    .form-field label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: .3rem; }
+    .form-field input { width: 100%; padding: .5rem .7rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .9rem; }
+    .form-field input:focus { outline: 2px solid #059669; outline-offset: 1px; border-color: transparent; }
+    .role-display { width: 100%; padding: .5rem .7rem; border: 1px solid #e5e7eb; border-radius: 4px; font-size: .9rem; background: #f9fafb; color: #374151; }
+    .btn-submit { width: 100%; padding: .6rem; background: #1b4332; color: #fff; font-size: .95rem; font-weight: 600; border: none; border-radius: 4px; cursor: pointer; margin-top: .25rem; }
+    .btn-submit:hover { background: #155724; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="invite-wrapper">
+    {% if calendarId is defined and calendarId %}
+    <a class="back-link" href="{{ path('agent_calendar_show', {id: calendarId}) }}">← Back to Calendar</a>
+    {% else %}
+    <a class="back-link" href="{{ path('agent_calendar_list') }}">← Back to My Calendars</a>
+    {% endif %}
+
+    <h1>Invite a Client</h1>
+    <p class="subtitle">Send an invitation email to a new client so they can access your calendar.</p>
+
+    <div class="card">
+        <form method="post" action="{{ path('agent_invite_client') }}">
+            <div class="form-field">
+                <label for="email">Client Email Address</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    autofocus
+                    placeholder="client@example.com"
+                    value="{{ prefillEmail ?? '' }}"
+                >
+            </div>
+            <div class="form-field">
+                <label>Role</label>
+                <div class="role-display">Client</div>
+                <input type="hidden" name="role" value="ROLE_CLIENT">
+            </div>
+            {% if calendarId is defined and calendarId %}
+            <input type="hidden" name="calendarId" value="{{ calendarId }}">
+            {% endif %}
+            <button type="submit" class="btn-submit">Send Invite</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

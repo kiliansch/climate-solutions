@@ -1,0 +1,124 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Calendars — Climate Solutions{% endblock %}
+
+{% block stylesheets %}
+<style>
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1b4332; margin-bottom: 1.25rem; }
+    h2 { font-size: 1.125rem; font-weight: 700; color: #1b4332; margin: 1.75rem 0 .75rem; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th, td { padding: .75rem 1rem; text-align: left; font-size: .9rem; border-bottom: 1px solid #e8f0e8; }
+    th { background: #1b4332; color: #fff; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .badge-timeslot { background: #dbeafe; color: #1e40af; }
+    .badge-dayslot  { background: #d1fae5; color: #065f46; }
+    .actions { display: flex; gap: .4rem; }
+    .btn { display: inline-block; padding: .35rem .75rem; border-radius: 4px; font-size: .8rem; font-weight: 600; cursor: pointer; text-decoration: none; border: none; line-height: 1.4; }
+    .btn-view  { background: #1b4332; color: #fff; }
+    .btn-view:hover  { background: #155724; }
+    .btn-share { background: #059669; color: #fff; }
+    .btn-share:hover { background: #047857; }
+    .btn-share.copied { background: #6b7280; cursor: default; }
+    .create-form { background: #fff; padding: 1.5rem; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end; }
+    .form-field label { display: block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem; color: #374151; }
+    .form-field input,
+    .form-field select { width: 100%; padding: .45rem .6rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .9rem; background: #fff; }
+    .btn-submit { background: #1b4332; color: #fff; padding: .5rem 1.25rem; border-radius: 4px; font-size: .9rem; font-weight: 600; border: none; cursor: pointer; }
+    .btn-submit:hover { background: #155724; }
+</style>
+{% endblock %}
+
+{% block body %}
+<h1>My Calendars</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Display Mode</th>
+            <th>Client</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for calendar in calendars %}
+        <tr>
+            <td>{{ calendar.name }}</td>
+            <td>
+                <span class="badge badge-{{ calendar.displayMode }}">{{ calendar.displayMode }}</span>
+            </td>
+            <td>{{ calendar.client.name ?? calendar.client.email }}</td>
+            <td>{{ calendar.createdAt|date('Y-m-d') }}</td>
+            <td>
+                <div class="actions">
+                    <a class="btn btn-view"
+                       href="{{ path('agent_calendar_show', {id: calendar.id}) }}"
+                    >View</a>
+                    <button
+                        class="btn btn-share"
+                        type="button"
+                        data-share-url="{{ url('calendar_public_view', {token: calendar.publicToken}) }}"
+                        onclick="copyShareUrl(this)"
+                    >Share</button>
+                </div>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="5">No calendars yet. Create one below.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>New Calendar</h2>
+<div class="create-form">
+    <form class="form-grid" method="post" action="{{ path('agent_calendar_create') }}">
+        <div class="form-field">
+            <label for="name">Calendar Name</label>
+            <input type="text" id="name" name="name" required placeholder="e.g. Q2 Availability">
+        </div>
+        <div class="form-field">
+            <label for="displayMode">Display Mode</label>
+            <select id="displayMode" name="displayMode" required>
+                <option value="dayslot">Dayslot</option>
+                <option value="timeslot">Timeslot</option>
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="clientId">Client</label>
+            <select id="clientId" name="clientId" required>
+                <option value="">— select client —</option>
+                {% for client in clients %}
+                <option value="{{ client.id }}">{{ client.name ?? client.email }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn-submit">Create</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function copyShareUrl(button) {
+    var url = button.dataset.shareUrl;
+    navigator.clipboard.writeText(url).then(function () {
+        var original = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        button.disabled = true;
+        setTimeout(function () {
+            button.textContent = original;
+            button.classList.remove('copied');
+            button.disabled = false;
+        }, 2000);
+    });
+}
+</script>
+{% endblock %}
