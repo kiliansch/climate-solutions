@@ -103,6 +103,9 @@
 ### Phase 3 / Prompt 3.1 ✅
 - **BookingRequestCreatedMessage** { bookingRequestId: int }
 
+### Gap / Prompt R2 ✅
+- **InvitationCreatedHandler** handles `InvitationCreatedMessage` → generates absolute `app_invite_accept` URL via `UrlGeneratorInterface`; sends `TemplatedEmail` to invited user with HTML template `emails/invitation.html.twig` and plain-text fallback `emails/invitation.txt.twig`; context: `{ acceptUrl, role, expiresInDays: 7 }`
+
 ### Phase 4 / Prompt 4.1 ✅
 - **BookingRequestCreatedHandler** — handles `BookingRequestCreatedMessage`; loads `BookingRequest` by id; loads agent's `NotificationSetting` (defaults to emailEnabled=true, inAppEnabled=true if not set); if emailEnabled: sends `BookingRequestEmail` to agent via `MailerInterface`; if inAppEnabled: persists a new `Notification` for the agent
 
@@ -113,6 +116,10 @@
 - **RegistrationService::registerAgent(RegistrationDTO $dto): User** — checks `UserRepository::findOneByEmail()` and throws `\DomainException('Email already in use')` if found; creates User with `roles=['ROLE_AGENT']`, `status='active'`, hashed password; persists and flushes
 - **templates/auth/register.html.twig** — extends `base.html.twig`; form with name, email, password, password confirmation (client-side match check); "Create Account" submit button; link to `/login`; displays flash messages and `DomainException` errors
 - **UserRepository::findOneByEmail(string $email): ?User** — added explicit method delegating to `findOneBy`
+
+### Gap / Prompt R2 ✅
+- **templates/emails/invitation.html.twig** — standalone HTML email (no base.html.twig); shows role label (Agent or Client), prominent CTA button linking to `acceptUrl`, 7-day expiry note, plain-text URL fallback below the button
+- **templates/emails/invitation.txt.twig** — plain-text version with role, `acceptUrl`, and expiry note
 
 ## Pending / Open Questions
 - Multi-calendar per client — TBD

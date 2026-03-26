@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You've been invited</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, sans-serif; color: #333333; }
+        .wrapper { width: 100%; padding: 40px 0; background-color: #f4f4f4; }
+        .container { max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .header { background-color: #1a7f5a; padding: 32px 40px; text-align: center; }
+        .header h1 { margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .body { padding: 40px 40px 32px; }
+        .body p { margin: 0 0 16px; font-size: 16px; line-height: 1.6; }
+        .role-badge { display: inline-block; background-color: #e8f5ef; color: #1a7f5a; font-weight: 700; font-size: 14px; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 24px; }
+        .cta-wrapper { text-align: center; margin: 32px 0; }
+        .cta-button { display: inline-block; background-color: #1a7f5a; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 700; padding: 14px 32px; border-radius: 6px; }
+        .expiry-note { font-size: 13px; color: #888888; margin-top: 8px; }
+        .fallback-url { word-break: break-all; font-size: 13px; color: #555555; background-color: #f9f9f9; padding: 12px; border-radius: 4px; border: 1px solid #e0e0e0; }
+        .footer { background-color: #f4f4f4; padding: 24px 40px; text-align: center; font-size: 12px; color: #999999; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h1>Calendar Booking System</h1>
+            </div>
+            <div class="body">
+                <p>You have been invited to join the <strong>Calendar Booking System</strong> as:</p>
+                <div>
+                    <span class="role-badge">{{ role == 'ROLE_AGENT' ? 'Agent' : 'Client' }}</span>
+                </div>
+                <p>Click the button below to set up your account and accept the invitation.</p>
+                <div class="cta-wrapper">
+                    <a href="{{ acceptUrl }}" class="cta-button">Accept Invitation</a>
+                </div>
+                <p class="expiry-note">This invitation link expires in {{ expiresInDays }} days.</p>
+                <p>If the button above does not work, copy and paste the following URL into your browser:</p>
+                <div class="fallback-url">{{ acceptUrl }}</div>
+            </div>
+            <div class="footer">
+                If you did not expect this invitation, you can safely ignore this email.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

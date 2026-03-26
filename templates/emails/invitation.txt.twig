@@ -1,0 +1,13 @@
+You have been invited to the Calendar Booking System
+=====================================================
+
+Role: {{ role == 'ROLE_AGENT' ? 'Agent' : 'Client' }}
+
+You have been invited to join the Calendar Booking System.
+To accept the invitation and set up your account, visit the link below:
+
+{{ acceptUrl }}
+
+This link expires in {{ expiresInDays }} days.
+
+If you did not expect this invitation, you can safely ignore this email.
