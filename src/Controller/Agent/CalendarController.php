@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Agent;
 
-use App\Dto\CalendarDTO;
-use App\Dto\SlotDTO;
 use App\Entity\Calendar;
 use App\Entity\Slot;
 use App\Entity\User;
@@ -14,10 +12,9 @@ use App\Repository\SlotRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/agent')]
@@ -33,134 +30,125 @@ class CalendarController extends AbstractController
     }
 
     #[Route('/calendars', name: 'agent_calendar_list', methods: ['GET'])]
-    public function list(): JsonResponse
+    public function list(): Response
     {
         /** @var User $agent */
         $agent = $this->getUser();
 
         $calendars = $this->calendarRepository->findByAgent($agent);
+        $clients = $this->userRepository->findByRole('ROLE_CLIENT');
 
-        return $this->json(array_map(
-            static fn(Calendar $c): array => [
-                'id' => $c->getId(),
-                'name' => $c->getName(),
-                'displayMode' => $c->getDisplayMode(),
-                'publicToken' => $c->getPublicToken(),
-                'createdAt' => $c->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            ],
-            $calendars,
-        ));
+        return $this->render('agent/calendar/index.html.twig', [
+            'calendars' => $calendars,
+            'clients' => $clients,
+        ]);
     }
 
     #[Route('/calendars', name: 'agent_calendar_create', methods: ['POST'])]
-    public function create(#[MapRequestPayload] CalendarDTO $dto): JsonResponse
+    public function create(Request $request): Response
     {
-        $client = $this->userRepository->find($dto->clientId);
+        $name = trim((string) $request->request->get('name', ''));
+        $displayMode = (string) $request->request->get('displayMode', 'dayslot');
+        $clientId = (int) $request->request->get('clientId', 0);
+
+        $client = $this->userRepository->find($clientId);
 
         if ($client === null) {
-            return $this->json(['error' => 'Client not found.'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            $this->addFlash('error', 'Client not found.');
+
+            return $this->redirectToRoute('agent_calendar_list');
         }
 
         /** @var User $agent */
         $agent = $this->getUser();
 
         $calendar = new Calendar();
-        $calendar->setName($dto->name);
-        $calendar->setDisplayMode($dto->displayMode);
+        $calendar->setName($name);
+        $calendar->setDisplayMode($displayMode);
         $calendar->setClient($client);
         $calendar->setAgent($agent);
 
         $this->entityManager->persist($calendar);
         $this->entityManager->flush();
 
-        return $this->json([
-            'id' => $calendar->getId(),
-            'name' => $calendar->getName(),
-            'displayMode' => $calendar->getDisplayMode(),
-            'publicToken' => $calendar->getPublicToken(),
-            'createdAt' => $calendar->getCreatedAt()->format(\DateTimeInterface::ATOM),
-        ], JsonResponse::HTTP_CREATED);
+        $this->addFlash('success', sprintf('Calendar "%s" created.', $calendar->getName()));
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $calendar->getId()]);
     }
 
     #[Route('/calendars/{id}', name: 'agent_calendar_show', methods: ['GET'])]
-    public function show(int $id): JsonResponse
+    public function show(int $id): Response
     {
         $calendar = $this->findCalendarForCurrentAgent($id);
 
         if ($calendar === null) {
-            return $this->json(['error' => 'Calendar not found.'], JsonResponse::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('Calendar not found.');
         }
 
         $slots = $this->slotRepository->findOpenByCalendar($calendar);
 
-        return $this->json([
-            'id' => $calendar->getId(),
-            'name' => $calendar->getName(),
-            'displayMode' => $calendar->getDisplayMode(),
-            'publicToken' => $calendar->getPublicToken(),
-            'createdAt' => $calendar->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'slots' => array_map(
-                static fn(Slot $s): array => [
-                    'id' => $s->getId(),
-                    'type' => $s->getType(),
-                    'startAt' => $s->getStartAt()->format(\DateTimeInterface::ATOM),
-                    'endAt' => $s->getEndAt()->format(\DateTimeInterface::ATOM),
-                    'status' => $s->getStatus(),
-                    'location' => $s->getLocation(),
-                    'continent' => $s->getContinent(),
-                ],
-                $slots,
-            ),
+        return $this->render('agent/calendar/show.html.twig', [
+            'calendar' => $calendar,
+            'slots' => $slots,
         ]);
     }
 
     #[Route('/calendars/{id}/slots', name: 'agent_calendar_slot_create', methods: ['POST'])]
-    public function createSlot(int $id, #[MapRequestPayload] SlotDTO $dto): JsonResponse
+    public function createSlot(int $id, Request $request): Response
     {
         $calendar = $this->findCalendarForCurrentAgent($id);
 
         if ($calendar === null) {
-            return $this->json(['error' => 'Calendar not found.'], JsonResponse::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        $type = (string) $request->request->get('type', '');
+        $startAtRaw = (string) $request->request->get('startAt', '');
+        $endAtRaw = (string) $request->request->get('endAt', '');
+        $location = $request->request->get('location') ?: null;
+        $continent = $request->request->get('continent') ?: null;
+
+        try {
+            $startAt = new \DateTimeImmutable($startAtRaw);
+            $endAt = new \DateTimeImmutable($endAtRaw);
+        } catch (\Exception) {
+            $this->addFlash('error', 'Invalid date/time format.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
+        if ($startAt >= $endAt) {
+            $this->addFlash('error', 'Start date/time must be before end date/time.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
         }
 
         $slot = new Slot();
-        $slot->setType($dto->type);
-        $slot->setStartAt($dto->startAt);
-        $slot->setEndAt($dto->endAt);
-        $slot->setLocation($dto->location);
-        $slot->setContinent($dto->continent);
+        $slot->setType($type);
+        $slot->setStartAt($startAt);
+        $slot->setEndAt($endAt);
+        $slot->setLocation($location);
+        $slot->setContinent($continent);
         $slot->setCalendar($calendar);
 
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 
-        return $this->json([
-            'id' => $slot->getId(),
-            'type' => $slot->getType(),
-            'startAt' => $slot->getStartAt()->format(\DateTimeInterface::ATOM),
-            'endAt' => $slot->getEndAt()->format(\DateTimeInterface::ATOM),
-            'status' => $slot->getStatus(),
-            'location' => $slot->getLocation(),
-            'continent' => $slot->getContinent(),
-        ], JsonResponse::HTTP_CREATED);
+        $this->addFlash('success', 'Slot added successfully.');
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
     }
 
     #[Route('/calendars/{id}/share', name: 'agent_calendar_share', methods: ['GET'])]
-    public function share(int $id): JsonResponse
+    public function share(int $id): Response
     {
         $calendar = $this->findCalendarForCurrentAgent($id);
 
         if ($calendar === null) {
-            return $this->json(['error' => 'Calendar not found.'], JsonResponse::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('Calendar not found.');
         }
 
-        $url = $this->generateUrl(
-            'calendar_public_view',
-            ['token' => $calendar->getPublicToken()],
-            UrlGeneratorInterface::ABSOLUTE_URL,
-        );
-
-        return $this->json(['url' => $url]);
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
     }
 
     private function findCalendarForCurrentAgent(int $id): ?Calendar

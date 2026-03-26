@@ -42,11 +42,15 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
      */
     public function findByRole(string $role): array
     {
-        return $this->createQueryBuilder('u')
-            ->andWhere('u.roles LIKE :role')
+        $rsm = new \Doctrine\ORM\Query\ResultSetMappingBuilder($this->getEntityManager());
+        $rsm->addRootEntityFromClassMetadata(User::class, 'u');
+
+        $sql = 'SELECT ' . $rsm->generateSelectClause(['u' => 'u'])
+            . ' FROM users u WHERE u.roles::text LIKE :role ORDER BY u.created_at DESC';
+
+        return $this->getEntityManager()
+            ->createNativeQuery($sql, $rsm)
             ->setParameter('role', '%"' . $role . '"%')
-            ->orderBy('u.createdAt', 'DESC')
-            ->getQuery()
             ->getResult();
     }
 }

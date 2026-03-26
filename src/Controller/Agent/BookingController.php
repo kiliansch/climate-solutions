@@ -30,18 +30,9 @@ class BookingController extends AbstractController
 
         $bookingRequests = $this->bookingRequestRepository->findByAgent($agent);
 
-        return $this->json(array_map(
-            static fn(\App\Entity\BookingRequest $br): array => [
-                'id' => $br->getId(),
-                'customerName' => $br->getCustomerName(),
-                'customerEmail' => $br->getCustomerEmail(),
-                'message' => $br->getMessage(),
-                'status' => $br->getStatus(),
-                'slotId' => $br->getSlot()->getId(),
-                'createdAt' => $br->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            ],
-            $bookingRequests,
-        ));
+        return $this->render('agent/booking/index.html.twig', [
+            'bookingRequests' => $bookingRequests,
+        ]);
     }
 
     #[Route('/bookings/{id}/accept', name: 'agent_booking_accept', methods: ['PATCH'])]
@@ -53,15 +44,21 @@ class BookingController extends AbstractController
         $bookingRequest = $this->bookingRequestRepository->find($id);
 
         if ($bookingRequest === null) {
-            return $this->json(['error' => 'Booking request not found.'], Response::HTTP_NOT_FOUND);
+            $this->addFlash('error', 'Booking request not found.');
+
+            return $this->redirectToRoute('agent_booking_list');
         }
 
         try {
             $this->bookingService->acceptRequest($bookingRequest, $agent);
         } catch (\Symfony\Component\Security\Core\Exception\AccessDeniedException $e) {
-            return $this->json(['error' => $e->getMessage()], Response::HTTP_FORBIDDEN);
+            $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('agent_booking_list');
         } catch (\DomainException $e) {
-            return $this->json(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('agent_booking_list');
         }
 
         $this->addFlash('success', 'Booking request accepted.');
@@ -78,13 +75,17 @@ class BookingController extends AbstractController
         $bookingRequest = $this->bookingRequestRepository->find($id);
 
         if ($bookingRequest === null) {
-            return $this->json(['error' => 'Booking request not found.'], Response::HTTP_NOT_FOUND);
+            $this->addFlash('error', 'Booking request not found.');
+
+            return $this->redirectToRoute('agent_booking_list');
         }
 
         try {
             $this->bookingService->declineRequest($bookingRequest, $agent);
         } catch (\Symfony\Component\Security\Core\Exception\AccessDeniedException $e) {
-            return $this->json(['error' => $e->getMessage()], Response::HTTP_FORBIDDEN);
+            $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('agent_booking_list');
         }
 
         $this->addFlash('success', 'Booking request declined.');

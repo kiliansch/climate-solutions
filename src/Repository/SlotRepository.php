@@ -34,6 +34,18 @@ class SlotRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function hasOverriddenSlots(Calendar $calendar): bool
+    {
+        return (int) $this->createQueryBuilder('s')
+            ->select('COUNT(s.id)')
+            ->andWhere('s.calendar = :calendar')
+            ->andWhere('s.status = :status')
+            ->setParameter('calendar', $calendar)
+            ->setParameter('status', 'overridden')
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
+    }
+
     /**
      * @return Slot[]
      */

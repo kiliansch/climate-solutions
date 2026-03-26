@@ -71,7 +71,7 @@
 </head>
 <body>
     <header>
-        <strong>🌱 Climate Solutions</strong>
+        <a href="{{ path('app_home') }}"><strong>🌱 Climate Solutions</strong></a>
         <nav>
             {% if is_granted('ROLE_AGENT') %}
                 <a href="{{ path('agent_calendar_list') }}">My Calendars</a>
@@ -81,7 +81,11 @@
                 <a href="{{ path('admin_agent_list') }}">Agents</a>
             {% endif %}
             {% if is_granted('ROLE_CLIENT') and not is_granted('ROLE_AGENT') and not is_granted('ROLE_ADMIN') %}
-                <a href="/client/calendar">My Calendar</a>
+                <a href="{{ path('client_calendar_show') }}">My Calendar</a>
+            {% endif %}
+            {% if not app.user %}
+                <a href="{{ path('app_login') }}">Sign In</a>
+                <a href="{{ path('app_register') }}">Register</a>
             {% endif %}
             {% if app.user %}
                 <span class="user-info">

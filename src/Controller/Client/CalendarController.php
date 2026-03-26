@@ -7,6 +7,7 @@ namespace App\Controller\Client;
 use App\Dto\UnavailabilityDTO;
 use App\Entity\User;
 use App\Repository\CalendarRepository;
+use App\Repository\SlotRepository;
 use App\Repository\UnavailabilityRepository;
 use App\Service\UnavailabilityService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,7 @@ class CalendarController extends AbstractController
     public function __construct(
         private readonly CalendarRepository $calendarRepository,
         private readonly UnavailabilityRepository $unavailabilityRepository,
+        private readonly SlotRepository $slotRepository,
         private readonly UnavailabilityService $unavailabilityService,
         private readonly EntityManagerInterface $entityManager,
     ) {
@@ -46,6 +48,7 @@ class CalendarController extends AbstractController
         return $this->render('client/calendar/show.html.twig', [
             'calendar' => $calendar,
             'unavailabilities' => $unavailabilities,
+            'hasOverriddenSlots' => $this->slotRepository->hasOverriddenSlots($calendar),
         ]);
     }
 
