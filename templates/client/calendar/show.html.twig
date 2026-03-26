@@ -1,0 +1,147 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My Calendar — {{ calendar.name }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1b4332; margin-bottom: 1.25rem; }
+    h2 { font-size: 1.125rem; font-weight: 700; color: #1b4332; margin: 1.5rem 0 .75rem; }
+    h2:first-child { margin-top: 0; }
+
+    .warning-banner {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fcd34d;
+        border-radius: 6px;
+        padding: .85rem 1rem;
+        margin-bottom: 1.25rem;
+        font-size: .875rem;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1);
+        margin-bottom: 1.5rem;
+    }
+    th, td {
+        padding: .75rem 1rem;
+        text-align: left;
+        font-size: .875rem;
+        border-bottom: 1px solid #e8f0e8;
+        vertical-align: middle;
+    }
+    th { background: #1b4332; color: #fff; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .empty-row td { color: #6b7280; font-style: italic; text-align: center; padding: 2rem; }
+
+    .add-form {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1);
+        padding: 1.25rem;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; margin-bottom: .85rem; }
+    .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-field label { display: block; font-size: .78rem; font-weight: 600; margin-bottom: .25rem; color: #374151; }
+    .form-field input,
+    .form-field textarea {
+        width: 100%;
+        padding: .4rem .6rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: .875rem;
+        background: #fff;
+    }
+    .form-field textarea { resize: vertical; min-height: 60px; }
+
+    .btn { display: inline-block; padding: .4rem .85rem; border-radius: 4px; font-size: .85rem; font-weight: 600; cursor: pointer; text-decoration: none; border: none; }
+    .btn-primary { background: #1b4332; color: #fff; }
+    .btn-primary:hover { background: #155724; }
+    .btn-danger  { background: #dc2626; color: #fff; }
+    .btn-danger:hover  { background: #b91c1c; }
+    .btn-sm { padding: .25rem .55rem; font-size: .78rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<h1>{{ calendar.name }}</h1>
+
+{% if hasOverriddenSlots %}
+<div class="warning-banner">
+    ⚠️ One or more of your unavailability periods have overridden agent-opened slots. Any affected bookings have been cancelled.
+</div>
+{% endif %}
+
+<h2>Your Unavailability Blocks</h2>
+<table>
+    <thead>
+        <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>Reason</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for block in unavailabilities %}
+        <tr>
+            <td>{{ block.startAt|date('Y-m-d') }}</td>
+            <td>{{ block.endAt|date('Y-m-d') }}</td>
+            <td>{{ block.reason ?? '—' }}</td>
+            <td>
+                <form method="post" action="{{ path('client_unavailability_delete', {id: block.id}) }}" style="display:inline">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Remove this unavailability block?')">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+            <td colspan="4">No unavailability blocks set.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Add Unavailability</h2>
+<div class="add-form">
+    <form method="post" action="{{ path('client_unavailability_create') }}">
+        <div class="form-row form-row-3">
+            <div class="form-field">
+                <label for="startAt">From (date)</label>
+                <input type="date" id="startAt" name="startAt" required>
+            </div>
+            <div class="form-field">
+                <label for="endAt">To (date)</label>
+                <input type="date" id="endAt" name="endAt" required>
+            </div>
+            <div class="form-field">
+                <label for="reason">Reason (optional)</label>
+                <input type="text" id="reason" name="reason" maxlength="255" placeholder="e.g. Vacation">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Unavailability</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    // Ensure endAt >= startAt
+    document.getElementById('startAt').addEventListener('change', function () {
+        const end = document.getElementById('endAt');
+        if (end.value && end.value < this.value) {
+            end.value = this.value;
+        }
+        end.min = this.value;
+    });
+</script>
+{% endblock %}

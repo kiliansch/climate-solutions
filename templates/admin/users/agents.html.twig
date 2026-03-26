@@ -2,12 +2,60 @@
 
 {% block title %}Agents — Admin{% endblock %}
 
+{% block stylesheets %}
+<style>
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1b4332; margin-bottom: 1.25rem; }
+    h2 { font-size: 1.125rem; font-weight: 700; color: #1b4332; margin: 0 0 .75rem; }
+    .invite-card {
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .form-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+    .form-field { flex: 1; min-width: 200px; }
+    .form-field label { display: block; font-size: .78rem; font-weight: 600; margin-bottom: .25rem; color: #374151; }
+    .form-field input[type="email"] {
+        width: 100%;
+        padding: .4rem .6rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: .875rem;
+    }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    th, td { padding: .75rem 1rem; text-align: left; font-size: .875rem; border-bottom: 1px solid #e8f0e8; vertical-align: middle; }
+    th { background: #1b4332; color: #fff; font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .badge-active  { background: #d1fae5; color: #065f46; }
+    .badge-blocked { background: #fee2e2; color: #991b1b; }
+    .btn { display: inline-block; padding: .35rem .75rem; border-radius: 4px; font-size: .8rem; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary  { background: #1b4332; color: #fff; }
+    .btn-primary:hover  { background: #155724; }
+    .btn-block    { background: #dc2626; color: #fff; }
+    .btn-block:hover    { background: #b91c1c; }
+    .btn-unblock  { background: #059669; color: #fff; }
+    .btn-unblock:hover  { background: #047857; }
+    .empty-row td { color: #6b7280; font-style: italic; text-align: center; padding: 2rem; }
+</style>
+{% endblock %}
+
 {% block body %}
 <h1>Agents</h1>
 
-{% for message in app.flashes('success') %}
-    <p class="flash flash--success">{{ message }}</p>
-{% endfor %}
+<div class="invite-card">
+    <h2>Invite New Agent</h2>
+    <form method="post" action="{{ path('admin_invite') }}">
+        <div class="form-row">
+            <div class="form-field">
+                <label for="email">Email address</label>
+                <input type="email" id="email" name="email" placeholder="agent@example.com" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Invitation</button>
+        </div>
+    </form>
+</div>
 
 <table>
     <thead>
@@ -22,36 +70,29 @@
     <tbody>
         {% for agent in agents %}
         <tr>
-            <td>{{ agent.name }}</td>
+            <td>{{ agent.name ?? '—' }}</td>
             <td>{{ agent.email }}</td>
-            <td>{{ agent.status }}</td>
+            <td><span class="badge badge-{{ agent.status }}">{{ agent.status }}</span></td>
             <td>{{ agent.createdAt|date('Y-m-d') }}</td>
             <td>
                 {% if agent.status == 'active' %}
-                    <form method="post" action="{{ path('admin_user_block', {id: agent.id}) }}">
+                    <form method="post" action="{{ path('admin_user_block', {id: agent.id}) }}" style="display:inline">
                         <input type="hidden" name="_method" value="PATCH">
-                        <button type="submit">Block</button>
+                        <button type="submit" class="btn btn-block">Block</button>
                     </form>
                 {% else %}
-                    <form method="post" action="{{ path('admin_user_unblock', {id: agent.id}) }}">
+                    <form method="post" action="{{ path('admin_user_unblock', {id: agent.id}) }}" style="display:inline">
                         <input type="hidden" name="_method" value="PATCH">
-                        <button type="submit">Unblock</button>
+                        <button type="submit" class="btn btn-unblock">Unblock</button>
                     </form>
                 {% endif %}
             </td>
         </tr>
         {% else %}
-        <tr>
-            <td colspan="5">No agents found.</td>
+        <tr class="empty-row">
+            <td colspan="5">No agents yet. Invite someone above.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-
-<h2>Invite a new agent</h2>
-<form method="post" action="{{ path('admin_invite') }}">
-    <label for="email">Email address</label>
-    <input type="email" id="email" name="email" required>
-    <button type="submit">Send invitation</button>
-</form>
 {% endblock %}
