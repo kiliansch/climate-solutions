@@ -92,6 +92,16 @@
   - POST `/admin/invite` (`admin_invite`) → validates `InviteUserDTO` (NotBlank + valid Email on `email`) via `#[MapRequestPayload]`; calls `InvitationService::createInvitation()` with `role = 'ROLE_AGENT'`; flash success, redirect to `admin_agent_list`
 - **UserRepository::findByRole(string $role): User[]** — queries users whose JSON roles column contains the given role
 
+### Phase 6 / Prompt 6.4 ✅
+- **Client\CalendarController** protected by `#[IsGranted('ROLE_CLIENT')]`:
+  - GET `/client/calendar` (`client_calendar_show`) → `CalendarRepository::findByClient()`, 404 if not found; loads unavailability records via `UnavailabilityRepository::findByCalendar()`; renders `templates/client/calendar/show.html.twig` with `calendar` + `unavailabilities`
+  - POST `/client/unavailability` (`client_unavailability_create`) → validates `UnavailabilityDTO` via `#[MapRequestPayload]` (NotBlank on startAt+endAt, endAt must be after startAt, nullable reason); calls `UnavailabilityService::markUnavailable()`; flash success, redirect to `client_calendar_show`
+  - DELETE `/client/unavailability/{id}` (`client_unavailability_delete`) → verifies unavailability belongs to current user's calendar (403 if not); removes entity, flush; flash success, redirect to `client_calendar_show`
+- **CalendarRepository::findByClient(User $client): ?Calendar** — returns most recent calendar for the given client or null
+- **UnavailabilityRepository::findByCalendar(Calendar $calendar): Unavailability[]** — returns all unavailabilities for a calendar ordered by startAt ASC
+- **UnavailabilityDTO**: startAt (DateTimeImmutable, NotBlank), endAt (DateTimeImmutable, NotBlank, must be after startAt via Expression constraint), reason (nullable string)
+- **UnavailabilityService::markUnavailable()** updated to accept optional `?string $reason` parameter
+
 ## Messages (Messenger)
 
 - **InvitationCreatedMessage**: `{ email: string, token: string, role: string }`

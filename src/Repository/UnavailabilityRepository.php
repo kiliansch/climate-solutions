@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Calendar;
 use App\Entity\Unavailability;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -16,5 +17,18 @@ class UnavailabilityRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Unavailability::class);
+    }
+
+    /**
+     * @return Unavailability[]
+     */
+    public function findByCalendar(Calendar $calendar): array
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.calendar = :calendar')
+            ->setParameter('calendar', $calendar)
+            ->orderBy('u.startAt', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 }

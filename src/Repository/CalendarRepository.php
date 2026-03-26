@@ -40,4 +40,15 @@ class CalendarRepository extends ServiceEntityRepository
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    public function findByClient(User $client): ?Calendar
+    {
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.client = :client')
+            ->setParameter('client', $client)
+            ->orderBy('c.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

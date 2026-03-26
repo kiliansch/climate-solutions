@@ -22,12 +22,14 @@ class UnavailabilityService
         User $client,
         \DateTimeImmutable $start,
         \DateTimeImmutable $end,
+        ?string $reason = null,
     ): void {
         $unavailability = new Unavailability();
         $unavailability->setCalendar($calendar);
         $unavailability->setClient($client);
         $unavailability->setStartAt($start);
         $unavailability->setEndAt($end);
+        $unavailability->setReason($reason);
 
         $this->entityManager->persist($unavailability);
 
