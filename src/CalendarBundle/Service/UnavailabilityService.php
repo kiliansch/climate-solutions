@@ -6,6 +6,7 @@ namespace App\CalendarBundle\Service;
 
 use App\CalendarBundle\Entity\SlotUnavailability;
 use App\CalendarBundle\Entity\Unavailability;
+use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
 use App\Entity\Calendar;
 use App\Entity\User;
 use App\Repository\SlotRepository;
@@ -16,6 +17,7 @@ class UnavailabilityService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly SlotRepository $slotRepository,
+        private readonly SlotUnavailabilityRepository $slotUnavailabilityRepository,
     ) {
     }
 
@@ -65,6 +67,12 @@ class UnavailabilityService
         $slotStart = $slot->getStartAt()->setTime(0, 0, 0);
         $slotEnd = $slot->getEndAt()->setTime(0, 0, 0);
 
+        $existingDates = $this->slotUnavailabilityRepository->findBlockedDatesForSlot($slot);
+        $existingDateSet = array_flip(array_map(
+            static fn(\DateTimeImmutable $d): string => $d->format('Y-m-d'),
+            $existingDates,
+        ));
+
         $current = $slotStart;
         $totalDays = 0;
         $blockedDays = 0;
@@ -78,11 +86,13 @@ class UnavailabilityService
             if ($dayStart <= $unavailEnd && $dayEnd >= $unavailStart) {
                 $blockedDays++;
 
-                $slotUnavailability = new SlotUnavailability();
-                $slotUnavailability->setSlot($slot);
-                $slotUnavailability->setUnavailability($unavailability);
-                $slotUnavailability->setBlockedDate($current->setTime(0, 0, 0));
-                $this->entityManager->persist($slotUnavailability);
+                if (!isset($existingDateSet[$current->format('Y-m-d')])) {
+                    $slotUnavailability = new SlotUnavailability();
+                    $slotUnavailability->setSlot($slot);
+                    $slotUnavailability->setUnavailability($unavailability);
+                    $slotUnavailability->setBlockedDate($current->setTime(0, 0, 0));
+                    $this->entityManager->persist($slotUnavailability);
+                }
             }
 
             $current = $current->modify('+1 day');

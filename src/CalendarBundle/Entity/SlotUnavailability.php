@@ -9,8 +9,15 @@ use App\Entity\Slot;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: SlotUnavailabilityRepository::class)]
-#[ORM\Table(name: 'slot_unavailabilities')]
-#[ORM\Index(columns: ['slot_id', 'blocked_date'], name: 'idx_slot_unavailability_slot_date')]
+#[ORM\Table(
+    name: 'slot_unavailabilities',
+    uniqueConstraints: [
+        new ORM\UniqueConstraint(
+            name: 'uniq_slot_unavailability_slot_date',
+            columns: ['slot_id', 'blocked_date'],
+        ),
+    ],
+)]
 class SlotUnavailability
 {
     #[ORM\Id]

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Public;
 
 use App\CalendarBundle\Dto\BookingRequestDTO;
-use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
 use App\CalendarBundle\Service\BookingService;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
@@ -21,7 +20,6 @@ class CalendarController extends AbstractController
         private readonly CalendarRepository $calendarRepository,
         private readonly SlotRepository $slotRepository,
         private readonly BookingService $bookingService,
-        private readonly SlotUnavailabilityRepository $slotUnavailabilityRepository,
     ) {
     }
 
@@ -49,6 +47,12 @@ class CalendarController extends AbstractController
 
         if ($calendar === null) {
             throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        if (!$this->isCsrfTokenValid('calendar_public_book_' . $token, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+
+            return $this->redirectToRoute('calendar_public_view', ['token' => $token]);
         }
 
         $slotId = $request->request->getInt('slotId');

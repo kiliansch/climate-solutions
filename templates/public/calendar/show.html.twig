@@ -41,6 +41,7 @@
         .flash-list { list-style: none; margin-bottom: 1.25rem; }
         .flash-list li { padding: .75rem 1rem; border-radius: 4px; margin-bottom: .5rem; font-size: .9rem; }
         .flash-success { background: #d1fae5; color: #065f46; }
+        .flash-error { background: #fee2e2; color: #991b1b; }
 
         #calendar-holder {
             background: #fff;
@@ -121,6 +122,11 @@
                 <li class="flash-success">{{ message }}</li>
             </ul>
         {% endfor %}
+        {% for message in app.flashes('error') %}
+            <ul class="flash-list">
+                <li class="flash-error">{{ message }}</li>
+            </ul>
+        {% endfor %}
 
         <div class="page-heading">
             <h1>{{ calendar.name }}</h1>
@@ -137,6 +143,7 @@
             <form method="post" action="{{ path('calendar_public_book', {token: calendar.publicToken}) }}">
                 <input type="hidden" name="slotId" id="booking-slotId">
                 <input type="hidden" name="selectedDate" id="booking-selectedDate">
+                <input type="hidden" name="_token" value="{{ csrf_token('calendar_public_book_' ~ calendar.publicToken) }}">
                 <div class="form-row">
                     <div class="form-field">
                         <label for="booking-name">Your name</label>

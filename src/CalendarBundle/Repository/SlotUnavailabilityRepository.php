@@ -47,4 +47,34 @@ class SlotUnavailabilityRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult() > 0;
     }
+
+    /**
+     * Fetches blocked dates for multiple slots in a single query.
+     *
+     * @param Slot[] $slots
+     * @return array<int, array<string, true>> Map of slotId => [dateString => true]
+     */
+    public function findBlockedDateSetBySlots(array $slots): array
+    {
+        if ($slots === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('su')
+            ->select('IDENTITY(su.slot) AS slotId', 'su.blockedDate AS blockedDate')
+            ->andWhere('su.slot IN (:slots)')
+            ->setParameter('slots', $slots)
+            ->getQuery()
+            ->getArrayResult();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $slotId = (int) $row['slotId'];
+            /** @var \DateTimeImmutable $blockedDate */
+            $blockedDate = $row['blockedDate'];
+            $map[$slotId][$blockedDate->format('Y-m-d')] = true;
+        }
+
+        return $map;
+    }
 }

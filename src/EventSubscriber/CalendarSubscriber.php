@@ -52,6 +52,15 @@ class CalendarSubscriber implements EventSubscriberInterface
 
         $slots = $this->slotRepository->findByCalendarAndDateRange($calendar, $startImmutable, $endImmutable);
 
+        // Preload blocked dates for all open multi-day day-slots in a single query
+        $multiDayOpenSlots = array_values(array_filter(
+            $slots,
+            static fn($slot): bool => $slot->getStatus() === 'open'
+                && $slot->getType() === 'day'
+                && $slot->getStartAt()->format('Y-m-d') !== $slot->getEndAt()->format('Y-m-d'),
+        ));
+        $blockedDateMap = $this->slotUnavailabilityRepository->findBlockedDateSetBySlots($multiDayOpenSlots);
+
         foreach ($slots as $slot) {
             if ($slot->getStatus() !== 'open') {
                 if ($viewType === 'client' && $slot->getStatus() === 'overridden') {
@@ -78,7 +87,7 @@ class CalendarSubscriber implements EventSubscriberInterface
                 $slotEnd = $slot->getEndAt();
                 while ($current <= $slotEnd) {
                     $dayDate = $current->setTime(0, 0, 0);
-                    $blocked = $this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $dayDate);
+                    $blocked = isset($blockedDateMap[$slot->getId()][$dayDate->format('Y-m-d')]);
 
                     $dayStart = \DateTime::createFromImmutable($current->setTime(0, 0, 0));
                     $dayEnd = \DateTime::createFromImmutable($current->setTime(23, 59, 59));
