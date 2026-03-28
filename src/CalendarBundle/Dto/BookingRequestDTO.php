@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Dto;
+namespace App\CalendarBundle\Dto;
 
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -17,6 +17,7 @@ final class BookingRequestDTO
         #[Assert\Length(max: 255)]
         public readonly string $customerEmail = '',
         public readonly ?string $message = null,
+        public readonly ?\DateTimeImmutable $selectedDate = null,
     ) {
     }
 }

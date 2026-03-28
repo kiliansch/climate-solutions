@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
-use App\Entity\BookingRequest;
+use App\CalendarBundle\Entity\BookingRequest;
 use Symfony\Component\Mime\Email;
 
 final class BookingRequestEmail extends Email

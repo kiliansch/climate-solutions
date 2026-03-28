@@ -56,8 +56,8 @@ class SlotRepository extends ServiceEntityRepository
     ): array {
         return $this->createQueryBuilder('s')
             ->andWhere('s.calendar = :calendar')
-            ->andWhere('s.startAt >= :from')
-            ->andWhere('s.endAt <= :to')
+            ->andWhere('s.startAt < :to')
+            ->andWhere('s.endAt > :from')
             ->setParameter('calendar', $calendar)
             ->setParameter('from', $from)
             ->setParameter('to', $to)

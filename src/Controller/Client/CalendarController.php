@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Client;
 
-use App\Dto\UnavailabilityDTO;
+use App\CalendarBundle\Dto\UnavailabilityDTO;
+use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
+use App\CalendarBundle\Repository\UnavailabilityRepository;
+use App\CalendarBundle\Service\UnavailabilityService;
 use App\Entity\User;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
-use App\Repository\UnavailabilityRepository;
-use App\Service\UnavailabilityService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -28,6 +29,7 @@ class CalendarController extends AbstractController
         private readonly SlotRepository $slotRepository,
         private readonly UnavailabilityService $unavailabilityService,
         private readonly EntityManagerInterface $entityManager,
+        private readonly SlotUnavailabilityRepository $slotUnavailabilityRepository,
     ) {
     }
 
@@ -45,10 +47,32 @@ class CalendarController extends AbstractController
 
         $unavailabilities = $this->unavailabilityRepository->findByCalendar($calendar);
 
+        $blockedDatesByUnavailability = [];
+
+        if ($unavailabilities !== []) {
+            foreach ($unavailabilities as $unavailability) {
+                $blockedDatesByUnavailability[$unavailability->getId()] = [];
+            }
+
+            $results = $this->slotUnavailabilityRepository->createQueryBuilder('su')
+                ->select('IDENTITY(su.unavailability) AS unavailabilityId', 'su.blockedDate AS blockedDate')
+                ->andWhere('su.unavailability IN (:unavailabilities)')
+                ->setParameter('unavailabilities', $unavailabilities)
+                ->orderBy('unavailabilityId', 'ASC')
+                ->addOrderBy('su.blockedDate', 'ASC')
+                ->getQuery()
+                ->getArrayResult();
+
+            foreach ($results as $row) {
+                $blockedDatesByUnavailability[(int) $row['unavailabilityId']][] = $row['blockedDate'];
+            }
+        }
+
         return $this->render('client/calendar/show.html.twig', [
             'calendar' => $calendar,
             'unavailabilities' => $unavailabilities,
             'hasOverriddenSlots' => $this->slotRepository->hasOverriddenSlots($calendar),
+            'blockedDatesByUnavailability' => $blockedDatesByUnavailability,
         ]);
     }
 
@@ -64,11 +88,18 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('No calendar found for this client.');
         }
 
+        $startAt = $dto->startAt;
+        $endAt = $dto->endAt;
+
+        if ($startAt->format('Y-m-d') === $endAt->format('Y-m-d')) {
+            $endAt = $endAt->setTime(23, 59, 59);
+        }
+
         $this->unavailabilityService->markUnavailable(
             calendar: $calendar,
             client: $client,
-            start: $dto->startAt,
-            end: $dto->endAt,
+            start: $startAt,
+            end: $endAt,
             reason: $dto->reason,
         );
 

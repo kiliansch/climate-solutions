@@ -24,7 +24,7 @@
         }
         header .brand { font-weight: 700; font-size: 1.1rem; color: #95d5b2; text-decoration: none; }
         header .brand:hover { color: #fff; }
-        main { flex: 1; padding: 2rem; max-width: 860px; margin: 0 auto; width: 100%; }
+        main { flex: 1; padding: 2rem; max-width: 960px; margin: 0 auto; width: 100%; }
         footer {
             text-align: center;
             padding: 1rem;
@@ -41,68 +41,50 @@
         .flash-list { list-style: none; margin-bottom: 1.25rem; }
         .flash-list li { padding: .75rem 1rem; border-radius: 4px; margin-bottom: .5rem; font-size: .9rem; }
         .flash-success { background: #d1fae5; color: #065f46; }
+        .flash-error { background: #fee2e2; color: #991b1b; }
 
-        .no-slots { color: #6b7280; font-style: italic; padding: 1.5rem 0; }
-
-        .date-group { margin-bottom: 2rem; }
-        .date-group__label {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #1b4332;
-            border-bottom: 2px solid #d8e8d8;
-            padding-bottom: .35rem;
-            margin-bottom: .85rem;
-        }
-        .slot-card {
+        #calendar-holder {
             background: #fff;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.08);
-            padding: 1rem 1.125rem;
-            margin-bottom: .75rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
         }
-        .slot-card__head {
-            display: flex;
-            align-items: center;
-            gap: .75rem;
-            flex-wrap: wrap;
+        .fc-toolbar-title { color: #1b4332 !important; }
+        .fc-button-primary {
+            background-color: #2d6a4f !important;
+            border-color: #2d6a4f !important;
         }
-        .slot-card__time { font-weight: 600; font-size: .95rem; color: #1b1b1b; }
-        .slot-card__meta { font-size: .82rem; color: #555; flex: 1; }
-        .badge {
-            display: inline-block;
-            padding: .18rem .52rem;
-            border-radius: 9999px;
-            font-size: .68rem;
-            font-weight: 700;
-            letter-spacing: .04em;
-            text-transform: uppercase;
+        .fc-button-primary:hover {
+            background-color: #1b4332 !important;
+            border-color: #1b4332 !important;
         }
-        .badge-day      { background: #fef3c7; color: #92400e; }
-        .badge-time     { background: #ede9fe; color: #5b21b6; }
-        .badge-continent { background: #dbeafe; color: #1e40af; }
+        .fc-button-active {
+            background-color: #1b4332 !important;
+            border-color: #1b4332 !important;
+        }
+        .fc-daygrid-event { border-radius: 4px; cursor: pointer; }
 
-        .btn-request {
-            display: inline-block;
-            padding: .35rem .8rem;
-            background: #059669;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            font-size: .82rem;
-            font-weight: 600;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .btn-request:hover { background: #047857; }
-        .btn-request[aria-expanded="true"] { background: #6b7280; }
-
-        .booking-form {
+        .booking-overlay {
             display: none;
-            margin-top: .85rem;
-            padding-top: .85rem;
-            border-top: 1px solid #e8f0e8;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
-        .booking-form.is-open { display: block; }
+        .booking-overlay.is-open { display: flex; }
+        .booking-panel {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.15);
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 480px;
+        }
+        .booking-panel h3 { font-size: 1.1rem; font-weight: 700; color: #1b4332; margin-bottom: 1rem; }
+        .booking-panel .slot-info { font-size: .85rem; color: #555; margin-bottom: 1rem; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .75rem; }
         .form-field label { display: block; font-size: .78rem; font-weight: 600; margin-bottom: .25rem; color: #374151; }
         .form-field input,
@@ -116,16 +98,17 @@
         .form-field textarea { resize: vertical; min-height: 64px; }
         .form-field-full { grid-column: 1 / -1; }
         .btn-submit {
-            background: #1b4332;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            padding: .45rem .95rem;
-            font-size: .875rem;
-            font-weight: 600;
-            cursor: pointer;
+            background: #1b4332; color: #fff; border: none; border-radius: 4px;
+            padding: .45rem .95rem; font-size: .875rem; font-weight: 600; cursor: pointer;
         }
         .btn-submit:hover { background: #155724; }
+        .btn-cancel {
+            background: transparent; color: #6b7280; border: 1px solid #d1d5db; border-radius: 4px;
+            padding: .45rem .95rem; font-size: .875rem; font-weight: 600; cursor: pointer;
+            margin-left: .5rem;
+        }
+        .btn-cancel:hover { background: #f3f4f6; }
+        .booking-actions { margin-top: 1rem; display: flex; gap: .5rem; }
     </style>
 </head>
 <body>
@@ -139,102 +122,101 @@
                 <li class="flash-success">{{ message }}</li>
             </ul>
         {% endfor %}
+        {% for message in app.flashes('error') %}
+            <ul class="flash-list">
+                <li class="flash-error">{{ message }}</li>
+            </ul>
+        {% endfor %}
 
         <div class="page-heading">
             <h1>{{ calendar.name }}</h1>
             <p class="client-name">{{ calendar.client.name ?? calendar.client.email }}</p>
         </div>
 
-        {% if slots is empty %}
-            <p class="no-slots">No available slots at the moment. Please check back later.</p>
-        {% else %}
-            {% set current_date = null %}
-            {% for slot in slots %}
-                {% set slot_date_key = slot.startAt|date('Y-m-d') %}
-                {% set slot_date_label = slot.startAt|date('l, d F Y') %}
+        <div id="calendar-holder"></div>
+    </main>
 
-                {% if slot_date_key != current_date %}
-                    {% if current_date is not null %}</div>{% endif %}
-                    <div class="date-group">
-                    <div class="date-group__label">{{ slot_date_label }}</div>
-                    {% set current_date = slot_date_key %}
-                {% endif %}
-
-                <div class="slot-card">
-                    <div class="slot-card__head">
-                        {% if slot.type == 'day' %}
-                            <span class="slot-card__time">Full day</span>
-                            <span class="badge badge-day">Day</span>
-                        {% else %}
-                            <span class="slot-card__time">
-                                {{ slot.startAt|date('H:i') }} – {{ slot.endAt|date('H:i') }}
-                            </span>
-                            <span class="badge badge-time">Time block</span>
-                        {% endif %}
-                        {% if slot.continent %}
-                            <span class="badge badge-continent">{{ slot.continent }}</span>
-                        {% endif %}
-                        {% if slot.location %}
-                            <span class="slot-card__meta">📍 {{ slot.location }}</span>
-                        {% endif %}
-                        <button
-                            type="button"
-                            class="btn-request"
-                            aria-expanded="false"
-                            aria-controls="booking-form-{{ slot.id }}"
-                            onclick="toggleBookingForm(this, 'booking-form-{{ slot.id }}')"
-                        >Request Booking</button>
+    <div class="booking-overlay" id="booking-overlay">
+        <div class="booking-panel">
+            <h3>Request Booking</h3>
+            <div class="slot-info" id="booking-slot-info"></div>
+            <form method="post" action="{{ path('calendar_public_book', {token: calendar.publicToken}) }}">
+                <input type="hidden" name="slotId" id="booking-slotId">
+                <input type="hidden" name="selectedDate" id="booking-selectedDate">
+                <input type="hidden" name="_token" value="{{ csrf_token('calendar_public_book_' ~ calendar.publicToken) }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="booking-name">Your name</label>
+                        <input type="text" id="booking-name" name="customerName" required maxlength="255" autocomplete="name">
                     </div>
-
-                    <div class="booking-form" id="booking-form-{{ slot.id }}">
-                        <form method="post" action="{{ path('calendar_public_book', {token: calendar.publicToken}) }}">
-                            <input type="hidden" name="slotId" value="{{ slot.id }}">
-                            <div class="form-row">
-                                <div class="form-field">
-                                    <label for="name-{{ slot.id }}">Your name</label>
-                                    <input
-                                        type="text"
-                                        id="name-{{ slot.id }}"
-                                        name="customerName"
-                                        required
-                                        maxlength="255"
-                                        autocomplete="name"
-                                    >
-                                </div>
-                                <div class="form-field">
-                                    <label for="email-{{ slot.id }}">Email address</label>
-                                    <input
-                                        type="email"
-                                        id="email-{{ slot.id }}"
-                                        name="customerEmail"
-                                        required
-                                        maxlength="255"
-                                        autocomplete="email"
-                                    >
-                                </div>
-                                <div class="form-field form-field-full">
-                                    <label for="message-{{ slot.id }}">Message (optional)</label>
-                                    <textarea id="message-{{ slot.id }}" name="message" rows="3"></textarea>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn-submit">Send Request</button>
-                        </form>
+                    <div class="form-field">
+                        <label for="booking-email">Email address</label>
+                        <input type="email" id="booking-email" name="customerEmail" required maxlength="255" autocomplete="email">
+                    </div>
+                    <div class="form-field form-field-full">
+                        <label for="booking-message">Message (optional)</label>
+                        <textarea id="booking-message" name="message" rows="3"></textarea>
                     </div>
                 </div>
-
-            {% endfor %}
-            {% if current_date is not null %}</div>{% endif %}
-        {% endif %}
-    </main>
+                <div class="booking-actions">
+                    <button type="submit" class="btn-submit">Send Request</button>
+                    <button type="button" class="btn-cancel" onclick="closeBooking()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <footer>&copy; {{ "now"|date("Y") }} Climate Solutions</footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
     <script>
-        function toggleBookingForm(btn, formId) {
-            const form = document.getElementById(formId);
-            const isOpen = form.classList.toggle('is-open');
-            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            btn.textContent = isOpen ? 'Cancel' : 'Request Booking';
+        document.addEventListener('DOMContentLoaded', function () {
+            var cal = new FullCalendar.Calendar(document.getElementById('calendar-holder'), {
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,listMonth'
+                },
+                eventSources: [{
+                    url: '/fc-load-events',
+                    method: 'POST',
+                    extraParams: {
+                        filters: JSON.stringify({ token: '{{ calendar.publicToken }}', viewType: 'public' })
+                    },
+                    failure: function () { console.error('Failed to load calendar events.'); }
+                }],
+                eventColor: '#2d6a4f',
+                eventClick: function (info) {
+                    var props = info.event.extendedProps;
+                    if (props.status !== 'open') return;
+
+                    document.getElementById('booking-slotId').value = props.slotId;
+                    document.getElementById('booking-selectedDate').value = props.date || '';
+
+                    var infoText = '';
+                    if (props.type === 'day') {
+                        infoText = props.date;
+                    } else if (props.timeRange) {
+                        infoText = props.date + ' · ' + props.timeRange;
+                    }
+                    if (props.location) infoText += ' · 📍 ' + props.location;
+                    if (props.continent) infoText += ' · ' + props.continent;
+                    document.getElementById('booking-slot-info').textContent = infoText;
+
+                    document.getElementById('booking-overlay').classList.add('is-open');
+                },
+            });
+            cal.render();
+
+            document.getElementById('booking-overlay').addEventListener('click', function (e) {
+                if (e.target === this) closeBooking();
+            });
+        });
+
+        function closeBooking() {
+            document.getElementById('booking-overlay').classList.remove('is-open');
         }
     </script>
 </body>

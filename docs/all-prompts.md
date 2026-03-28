@@ -805,8 +805,223 @@ Append to docs/implementation-status.md under a new section ## Infrastructure:
 Mark Docker / Prompt D1 as complete.
 ```
 
+## Bug Fixes & Feature Gaps — Session 2026-03-28
+
+### Prompt BF1 — Bug Fixes & Feature Gaps (7 issues)
+
+```
+### CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+Depends on: All Phase 1–6 prompts completed.
+
+### TASK
+Address the following 7 issues in the calendar booking system:
+
+---
+
+#### 1. Dayslot — No time required
+When creating a slot with type='day', do NOT require or save time values.
+- In SlotDTO: if type='day', coerce startAt and endAt to midnight (00:00:00) before persisting.
+- In the agent slot creation form (templates/agent/calendar/show.html.twig): when type='day' is selected, hide the time part of the datetime inputs (use date-only input or hide the time picker via JS).
+- In the public calendar view (templates/public/calendar/show.html.twig): for day slots, display only the date (not the time).
+
+---
+
+#### 2. Dayslot spanning multiple days — Individual day booking
+When a Slot has type='day' and its startAt–endAt spans multiple calendar days, customers must be able to book individual days within that range (not only the full span).
+
+Implementation:
+- In Public\CalendarController GET /c/{token}: for each open day-type Slot where startAt != endAt, expand it into virtual day entries (one per day in the range). Pass these to the template as bookable units — each unit carries the original slotId plus a selectedDate (Y-m-d).
+- In BookingRequestDTO: add optional selectedDate (nullable DateTimeImmutable).
+- In BookingService::createRequest(): if the slot is type='day' and a selectedDate is provided, store it on the BookingRequest (add selectedDate nullable DateTimeImmutable field to BookingRequest entity).
+- In the public booking form: include a hidden selectedDate field when booking an individual day.
+- Generate Doctrine migration for the new BookingRequest.selectedDate field.
+
+---
+
+#### 3. Agent view — Show accepted and declined bookings
+In templates/agent/booking/index.html.twig:
+- The table currently only shows pending bookings (or hides accepted/declined). Update it to show ALL booking requests regardless of status.
+- Group or visually separate: Pending (yellow badge) / Accepted (green badge) / Declined (red badge).
+- For accepted/declined rows, do NOT show Accept/Decline action buttons.
+- BookingRequestRepository::findByAgent() must return all statuses — verify it has no status filter; if it does, remove it.
+
+---
+
+#### 4. Calendar/slot editing — Agent can edit unless bookings accepted
+Agents must be able to edit calendar name/displayMode and delete open slots, subject to these rules:
+- A calendar can be edited (name, displayMode) as long as it has no accepted BookingRequests.
+- A slot can be deleted if its status is NOT 'booked'.
+
+Add the following:
+- PATCH /agent/calendars/{id} → update name and/or displayMode; throws DomainException (flash error) if any accepted BookingRequest exists for any slot in this calendar.
+- DELETE /agent/calendars/{id}/slots/{slotId} → remove the slot unless status='booked' (403/flash error if booked). Use _method=DELETE override.
+- In CalendarService (create if needed) or directly in controller: add canEditCalendar(Calendar $calendar): bool — checks BookingRequestRepository for any accepted request on any slot belonging to this calendar.
+- Update templates/agent/calendar/show.html.twig:
+  - Add edit form for calendar name + displayMode (disabled if canEdit=false, with explanatory note).
+  - Add delete button per slot row (hidden if slot.status='booked').
+- Update docs.
+
+---
+
+#### 5. Public calendar view — Show full slot timeframe
+In templates/public/calendar/show.html.twig:
+- For time-type slots: display the full range "HH:MM – HH:MM" (startAt to endAt), not only startAt.
+- For day-type multi-day slots expanded into individual days (see issue 2): show the individual date.
+- For day-type single-day slots: show just the date.
+Ensure the Twig template renders endAt wherever a time slot is displayed.
+
+---
+
+#### 6. Client view — Show calendars added by agent
+Currently Client\CalendarController::findByClient() only finds calendars where the client is set. Verify that Agent\CalendarController when creating a calendar assigns the current authenticated user as agent and the selected clientId as client — this should already work.
+
+If the client dashboard (GET /client/calendar) returns 404 when the agent has created the calendar (because CalendarRepository::findByClient() is broken or uses the wrong field), fix the repository method:
+- CalendarRepository::findByClient(User $client): ?Calendar must query WHERE calendar.client = :client ORDER BY createdAt DESC, LIMIT 1.
+- Ensure the agent calendar creation (POST /agent/calendars) correctly sets calendar.client = the User with id=clientId (load user via UserRepository).
+- If currently setting client incorrectly (e.g. setting agent as client), fix it.
+
+---
+
+#### 7. Unavailabilities must block booking requests
+Bug: slots whose day falls within an unavailability period still show as 'open' and accept bookings.
+Root cause: The database shows Unavailability.startAt = 2026-04-16 00:00:00 and endAt = 2026-04-16 00:00:00 (same timestamp), meaning a single-day unavailability is stored with identical start and end, causing range overlap queries to miss it.
+
+Fix in two places:
+a) UnavailabilityService::markUnavailable(): when startAt == endAt (same date, single-day), set endAt to startAt + 23:59:59 (i.e., end of that day) before persisting and before running the slot overlap query. Alternatively set endAt to start of next day (startAt + 1 day at 00:00:00).
+b) UnavailabilityDTO / Client\CalendarController: when the client submits a single-day unavailability (startAt date == endAt date), normalise endAt to end-of-day (23:59:59) or next-day 00:00:00 before passing to the service.
+c) SlotRepository::findByCalendarAndDateRange(): ensure the overlap query uses a proper range comparison:
+   slot.startAt < :to AND slot.endAt > :from
+   (not <=/>= which misses zero-length ranges). Adjust if currently using wrong operators.
+d) After fix, re-run UnavailabilityService for any existing broken records (or provide a migration/command to normalise existing endAt=startAt rows by setting endAt = startAt + 1 day).
+
+### UPDATE DOCS
+Append to docs/implementation-status.md under a new section ## Bug Fixes & Feature Gaps:
+- BF1.1: Dayslot no-time enforcement in DTO + form + public view
+- BF1.2: Multi-day dayslot expanded to individual bookable days
+- BF1.3: Agent booking list shows all statuses (pending/accepted/declined)
+- BF1.4: Calendar/slot editing with accepted-booking guard
+- BF1.5: Public calendar shows full time range (startAt–endAt)
+- BF1.6: Client view correctly loads agent-created calendars
+- BF1.7: Unavailability normalisation fix (same-day start=end bug) + slot overlap query fix
+Mark Bug Fixes / Prompt BF1 as complete.
+```
+
+---
+## Feature Requests — Session 2026-03-28 (Continued)
+
+### Prompt BF2 — Partial Dayslot Unavailability & CalendarBundle Migration
+
+```
+### CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+Depends on: All Phase 1–6 + BF1 prompts completed.
+
+### TASK
+Address the following 2 requirements:
+
+---
+
+#### 1. Partial Unavailability — Block Only Affected Days Within a Dayslot
+
+**Problem:**
+When a client sets an unavailability that covers only a subset of a multi-day slot period,
+the entire slot is currently set to 'overridden', blocking all days — including days
+not covered by the unavailability.
+
+**Required behaviour:**
+Only the individual days that overlap with the unavailability period should be
+blocked for booking. Days within the slot that fall outside the unavailability range
+must remain bookable.
+
+**Implementation:**
+
+a) Do NOT change the slot status to 'overridden' for day-type slots when only a
+   subset of the period is affected. Instead, track blocked days at a finer granularity.
+
+b) Create a new entity `SlotUnavailability` (src/Entity/SlotUnavailability.php):
+   - id: int
+   - slot: ManyToOne -> Slot, not null
+   - unavailability: ManyToOne -> Unavailability, not null
+   - blockedDate: DateTimeImmutable  (the specific day that is blocked)
+   - Generate Doctrine migration.
+
+c) Update `UnavailabilityService::markUnavailable()`:
+   - For day-type Slots overlapping the unavailability range:
+     -> Iterate over each day in the slot's startAt-endAt range.
+     -> If the day falls within the unavailability's startAt-endAt range, create a
+        `SlotUnavailability` record for that day (do NOT change slot status to 'overridden').
+     -> If ALL days in the slot are covered by the unavailability, THEN set slot status
+        to 'overridden' (full block, preserving existing behaviour).
+   - For time-type Slots: keep existing behaviour (set status to 'overridden' if overlapping).
+   - Single flush after all updates.
+
+d) Add `SlotUnavailabilityRepository` (src/Repository/SlotUnavailabilityRepository.php):
+   - `findBlockedDatesForSlot(Slot $slot): array` — returns array of blocked DateTimeImmutable dates
+   - `isDateBlockedForSlot(Slot $slot, DateTimeImmutable $date): bool`
+
+e) Update `Public\CalendarController` GET `/c/{token}`:
+   - When expanding multi-day day-type slots into virtual per-day entries (BF1.2),
+     exclude any day that has a `SlotUnavailability` record (use `isDateBlockedForSlot()`).
+   - Days with a SlotUnavailability record must NOT appear as bookable units.
+
+f) Update `BookingService::createRequest()`:
+   - For day-type slots with a selectedDate: call `isDateBlockedForSlot()` and throw
+     `\DomainException('This date is not available for booking')` if blocked.
+
+g) Update templates/client/calendar/show.html.twig:
+   - In the unavailability table, add a column "Affected Days" that lists the specific
+     blocked dates per SlotUnavailability record for each Unavailability (if any).
+
+---
+
+#### 2. Move Booking & Unavailability Logic into CalendarBundle
+
+**Requirement:**
+All booking request handling and unavailability logic must use the CalendarBundle
+(src/CalendarBundle/ or equivalent bundle namespace) as the home for this logic.
+No business logic for bookings or unavailabilities should live outside the bundle.
+
+**Implementation:**
+
+a) If `CalendarBundle` does not yet exist, create it:
+   - `src/CalendarBundle/CalendarBundle.php` — standard Symfony bundle class
+   - Register it in `config/bundles.php`
+
+b) Move (or create if not yet in bundle) the following into the bundle:
+   - Entities: `BookingRequest`, `Unavailability`, `SlotUnavailability` -> `src/CalendarBundle/Entity/`
+   - Repositories: `BookingRequestRepository`, `UnavailabilityRepository`, `SlotUnavailabilityRepository` -> `src/CalendarBundle/Repository/`
+   - Services: `BookingService`, `UnavailabilityService` -> `src/CalendarBundle/Service/`
+   - Messages: `BookingRequestCreatedMessage` -> `src/CalendarBundle/Message/`
+   - Message Handler: `BookingRequestCreatedHandler` -> `src/CalendarBundle/MessageHandler/`
+   - DTOs: `BookingRequestDTO`, `UnavailabilityDTO` -> `src/CalendarBundle/Dto/`
+
+c) Update all namespace references across the codebase:
+   - Controllers (Public\CalendarController, Client\CalendarController, Agent\BookingController)
+     must import from `App\CalendarBundle\*` (or the correct bundle namespace).
+   - No class outside the bundle should directly instantiate bundle-internal services;
+     use constructor injection throughout.
+
+d) Update Doctrine mapping configuration if needed so Doctrine scans
+   `src/CalendarBundle/Entity/` for entities.
+
+e) Ensure all existing tests (if any) and routes continue to function after the move.
+
+### UPDATE DOCS
+Append to docs/implementation-status.md under a new section ## Bundle Refactor:
+- BF2.1: Partial dayslot unavailability — SlotUnavailability entity tracks per-day blocks;
+  UnavailabilityService iterates days; only fully-covered slots get 'overridden' status;
+  Public controller and BookingService respect blocked dates
+- BF2.2: CalendarBundle created; BookingRequest, Unavailability, SlotUnavailability entities,
+  repositories, services, messages and handlers moved into src/CalendarBundle/
+Mark Bundle Refactor / Prompt BF2 as complete.
+```
+
 ---
 
 ## End of Archive
 
-22 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
+24 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
+

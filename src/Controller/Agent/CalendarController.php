@@ -7,6 +7,7 @@ namespace App\Controller\Agent;
 use App\Entity\Calendar;
 use App\Entity\Slot;
 use App\Entity\User;
+use App\CalendarBundle\Repository\BookingRequestRepository;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
 use App\Repository\UserRepository;
@@ -22,6 +23,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class CalendarController extends AbstractController
 {
     public function __construct(
+        private readonly BookingRequestRepository $bookingRequestRepository,
         private readonly CalendarRepository $calendarRepository,
         private readonly SlotRepository $slotRepository,
         private readonly UserRepository $userRepository,
@@ -86,10 +88,12 @@ class CalendarController extends AbstractController
         }
 
         $slots = $this->slotRepository->findOpenByCalendar($calendar);
+        $canEdit = !$this->bookingRequestRepository->hasAcceptedBookingsForCalendar($calendar);
 
         return $this->render('agent/calendar/show.html.twig', [
             'calendar' => $calendar,
             'slots' => $slots,
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -119,6 +123,11 @@ class CalendarController extends AbstractController
             return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
         }
 
+        if ($type === 'day') {
+            $startAt = $startAt->setTime(0, 0, 0);
+            $endAt = $endAt->setTime(0, 0, 0);
+        }
+
         if ($startAt >= $endAt) {
             $this->addFlash('error', 'Start date/time must be before end date/time.');
 
@@ -137,6 +146,79 @@ class CalendarController extends AbstractController
         $this->entityManager->flush();
 
         $this->addFlash('success', 'Slot added successfully.');
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+    }
+
+    #[Route('/calendars/{id}', name: 'agent_calendar_update', methods: ['PATCH'])]
+    public function update(int $id, Request $request): Response
+    {
+        $calendar = $this->findCalendarForCurrentAgent($id);
+
+        if ($calendar === null) {
+            throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        if (!$this->isCsrfTokenValid('agent_calendar_update_' . $id, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
+        if ($this->bookingRequestRepository->hasAcceptedBookingsForCalendar($calendar)) {
+            $this->addFlash('error', 'Cannot edit calendar: it has accepted booking requests.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
+        $name = trim((string) $request->request->get('name', ''));
+        $displayMode = (string) $request->request->get('displayMode', '');
+
+        if ($name !== '') {
+            $calendar->setName($name);
+        }
+        if (in_array($displayMode, ['dayslot', 'timeslot'], true)) {
+            $calendar->setDisplayMode($displayMode);
+        }
+
+        $this->entityManager->flush();
+
+        $this->addFlash('success', 'Calendar updated successfully.');
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+    }
+
+    #[Route('/calendars/{id}/slots/{slotId}', name: 'agent_calendar_slot_delete', methods: ['DELETE'])]
+    public function deleteSlot(int $id, int $slotId, Request $request): Response
+    {
+        $calendar = $this->findCalendarForCurrentAgent($id);
+
+        if ($calendar === null) {
+            throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        if (!$this->isCsrfTokenValid('agent_calendar_slot_delete_' . $id . '_' . $slotId, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
+        $slot = $this->slotRepository->find($slotId);
+
+        if ($slot === null || $slot->getCalendar()->getId() !== $calendar->getId()) {
+            throw $this->createNotFoundException('Slot not found.');
+        }
+
+        if ($slot->getStatus() === 'booked') {
+            $this->addFlash('error', 'Cannot delete a booked slot.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
+        $this->entityManager->remove($slot);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', 'Slot deleted successfully.');
 
         return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
     }

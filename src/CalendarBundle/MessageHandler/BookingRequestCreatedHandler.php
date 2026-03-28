@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\MessageHandler;
+namespace App\CalendarBundle\MessageHandler;
 
+use App\CalendarBundle\Entity\BookingRequest;
+use App\CalendarBundle\Message\BookingRequestCreatedMessage;
+use App\CalendarBundle\Repository\BookingRequestRepository;
 use App\Entity\Notification;
 use App\Mail\BookingRequestEmail;
-use App\Message\BookingRequestCreatedMessage;
-use App\Repository\BookingRequestRepository;
 use App\Repository\NotificationSettingRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Mailer\MailerInterface;

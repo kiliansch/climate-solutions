@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller\Public;
 
-use App\Dto\BookingRequestDTO;
+use App\CalendarBundle\Dto\BookingRequestDTO;
+use App\CalendarBundle\Service\BookingService;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
-use App\Service\BookingService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,11 +32,8 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('Calendar not found.');
         }
 
-        $slots = $this->slotRepository->findOpenByCalendar($calendar);
-
         return $this->render('public/calendar/show.html.twig', [
             'calendar' => $calendar,
-            'slots' => $slots,
         ]);
     }
 
@@ -50,6 +47,12 @@ class CalendarController extends AbstractController
 
         if ($calendar === null) {
             throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        if (!$this->isCsrfTokenValid('calendar_public_book_' . $token, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+
+            return $this->redirectToRoute('calendar_public_view', ['token' => $token]);
         }
 
         $slotId = $request->request->getInt('slotId');

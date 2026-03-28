@@ -21,6 +21,31 @@
         gap: .5rem;
     }
 
+    #calendar-holder {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .fc-toolbar-title { color: #1b4332 !important; }
+    .fc-button-primary {
+        background-color: #2d6a4f !important;
+        border-color: #2d6a4f !important;
+    }
+    .fc-button-primary:hover {
+        background-color: #1b4332 !important;
+        border-color: #1b4332 !important;
+    }
+    .fc-button-active {
+        background-color: #1b4332 !important;
+        border-color: #1b4332 !important;
+    }
+    .fc-daygrid-event { border-radius: 4px; }
+    .cal-legend { display: flex; gap: 1.25rem; font-size: .78rem; margin-top: .75rem; }
+    .cal-legend span { display: flex; align-items: center; gap: .35rem; }
+    .cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+
     table {
         width: 100%;
         border-collapse: collapse;
@@ -79,6 +104,14 @@
 </div>
 {% endif %}
 
+<div id="calendar-holder"></div>
+<div class="cal-legend">
+    <span><i style="background:#2d6a4f"></i> Open slot</span>
+    <span><i style="background:#fbbf24"></i> Blocked day</span>
+    <span><i style="background:#9ca3af"></i> Overridden</span>
+    <span><i style="background:#dc2626"></i> Unavailability</span>
+</div>
+
 <h2>Your Unavailability Blocks</h2>
 <table>
     <thead>
@@ -86,6 +119,7 @@
             <th>From</th>
             <th>To</th>
             <th>Reason</th>
+            <th>Affected Days</th>
             <th></th>
         </tr>
     </thead>
@@ -96,6 +130,15 @@
             <td>{{ block.endAt|date('Y-m-d') }}</td>
             <td>{{ block.reason ?? '—' }}</td>
             <td>
+                {% if blockedDatesByUnavailability[block.id] is defined and blockedDatesByUnavailability[block.id] is not empty %}
+                    {% for date in blockedDatesByUnavailability[block.id] %}
+                        <span style="display:inline-block;background:#fef3c7;color:#92400e;padding:0 .4rem;border-radius:3px;font-size:.78rem;margin:1px">{{ date|date('Y-m-d') }}</span>
+                    {% endfor %}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>
                 <form method="post" action="{{ path('client_unavailability_delete', {id: block.id}) }}" style="display:inline">
                     <input type="hidden" name="_method" value="DELETE">
                     <button type="submit" class="btn btn-danger btn-sm"
@@ -105,7 +148,7 @@
         </tr>
         {% else %}
         <tr class="empty-row">
-            <td colspan="4">No unavailability blocks set.</td>
+            <td colspan="5">No unavailability blocks set.</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -134,14 +177,36 @@
 {% endblock %}
 
 {% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script>
-    // Ensure endAt >= startAt
-    document.getElementById('startAt').addEventListener('change', function () {
-        const end = document.getElementById('endAt');
-        if (end.value && end.value < this.value) {
-            end.value = this.value;
-        }
-        end.min = this.value;
+    document.addEventListener('DOMContentLoaded', function () {
+        new FullCalendar.Calendar(document.getElementById('calendar-holder'), {
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,listMonth'
+            },
+            eventSources: [{
+                url: '/fc-load-events',
+                method: 'POST',
+                extraParams: {
+                    filters: JSON.stringify({ token: '{{ calendar.publicToken }}', viewType: 'client' })
+                },
+                failure: function () { console.error('Failed to load calendar events.'); }
+            }],
+            eventColor: '#2d6a4f',
+        }).render();
+
+        // Ensure endAt >= startAt
+        document.getElementById('startAt').addEventListener('change', function () {
+            var end = document.getElementById('endAt');
+            if (end.value && end.value < this.value) {
+                end.value = this.value;
+            }
+            end.min = this.value;
+        });
     });
 </script>
 {% endblock %}

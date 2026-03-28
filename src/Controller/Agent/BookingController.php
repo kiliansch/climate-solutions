@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Agent;
 
+use App\CalendarBundle\Repository\BookingRequestRepository;
+use App\CalendarBundle\Service\BookingService;
 use App\Entity\User;
-use App\Repository\BookingRequestRepository;
-use App\Service\BookingService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
