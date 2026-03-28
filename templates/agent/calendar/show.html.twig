@@ -144,6 +144,7 @@
                         {% if slot.status != 'booked' %}
                         <form method="post" action="{{ path('agent_calendar_slot_delete', {id: calendar.id, slotId: slot.id}) }}" style="display:inline">
                             <input type="hidden" name="_method" value="DELETE">
+                            <input type="hidden" name="_token" value="{{ csrf_token('agent_calendar_slot_delete_' ~ calendar.id ~ '_' ~ slot.id) }}">
                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this slot?')">Delete</button>
                         </form>
                         {% endif %}
