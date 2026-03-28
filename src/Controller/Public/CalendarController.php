@@ -34,42 +34,8 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('Calendar not found.');
         }
 
-        $slots = $this->slotRepository->findOpenByCalendar($calendar);
-
-        $bookableSlots = [];
-        foreach ($slots as $slot) {
-            $isMultiDaySlot = $slot->getType() === 'day'
-                && $slot->getStartAt()->format('Y-m-d') !== $slot->getEndAt()->format('Y-m-d');
-
-            if ($isMultiDaySlot) {
-                $current = $slot->getStartAt();
-                $end = $slot->getEndAt();
-                while ($current <= $end) {
-                    $dayDate = $current->setTime(0, 0, 0);
-                    if (!$this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $dayDate)) {
-                        $bookableSlots[] = [
-                            'slot' => $slot,
-                            'selectedDate' => $current->format('Y-m-d'),
-                            'label' => $current->format('l, d F Y'),
-                            'isVirtual' => true,
-                        ];
-                    }
-                    $current = $current->modify('+1 day');
-                }
-            } else {
-                $bookableSlots[] = [
-                    'slot' => $slot,
-                    'selectedDate' => null,
-                    'label' => null,
-                    'isVirtual' => false,
-                ];
-            }
-        }
-
         return $this->render('public/calendar/show.html.twig', [
             'calendar' => $calendar,
-            'slots' => $slots,
-            'bookableSlots' => $bookableSlots,
         ]);
     }
 
