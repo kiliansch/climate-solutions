@@ -1,10 +1,5 @@
 
 services:
-  php:
-    build:
-      args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
 
 ###> doctrine/doctrine-bundle ###
   database:
