@@ -7,8 +7,8 @@ namespace App\Dto;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[Assert\Expression(
-    expression: 'this.startAt < this.endAt',
-    message: 'endAt must be after startAt.',
+    expression: 'this.startAt <= this.endAt',
+    message: 'endAt must be on or after startAt.',
 )]
 final class UnavailabilityDTO
 {
