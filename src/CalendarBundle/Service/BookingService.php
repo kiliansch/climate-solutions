@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+namespace App\CalendarBundle\Service;
 
-use App\Dto\BookingRequestDTO;
-use App\Entity\BookingRequest;
+use App\CalendarBundle\Dto\BookingRequestDTO;
+use App\CalendarBundle\Entity\BookingRequest;
+use App\CalendarBundle\Message\BookingRequestCreatedMessage;
+use App\CalendarBundle\Repository\BookingRequestRepository;
+use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
 use App\Entity\Slot;
 use App\Entity\User;
-use App\Message\BookingRequestCreatedMessage;
-use App\Repository\BookingRequestRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -19,6 +20,7 @@ class BookingService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly BookingRequestRepository $bookingRequestRepository,
+        private readonly SlotUnavailabilityRepository $slotUnavailabilityRepository,
         private readonly MessageBusInterface $bus,
     ) {
     }
@@ -33,12 +35,22 @@ class BookingService
             ));
         }
 
+        if ($slot->getType() === 'day' && $dto->selectedDate !== null) {
+            if ($this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $dto->selectedDate)) {
+                throw new \DomainException('This date is not available for booking.');
+            }
+        }
+
         $request = new BookingRequest();
         $request->setSlot($slot);
         $request->setCustomerName($dto->customerName);
         $request->setCustomerEmail($dto->customerEmail);
         $request->setMessage($dto->message);
         $request->setStatus('pending');
+
+        if ($slot->getType() === 'day' && $dto->selectedDate !== null) {
+            $request->setSelectedDate($dto->selectedDate);
+        }
 
         $this->entityManager->persist($request);
         $this->entityManager->flush();

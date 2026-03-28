@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Entity;
+namespace App\CalendarBundle\Entity;
 
-use App\Repository\UnavailabilityRepository;
+use App\CalendarBundle\Repository\UnavailabilityRepository;
+use App\Entity\Calendar;
+use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: UnavailabilityRepository::class)]

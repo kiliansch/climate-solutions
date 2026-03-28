@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Entity;
+namespace App\CalendarBundle\Entity;
 
-use App\Repository\BookingRequestRepository;
+use App\CalendarBundle\Repository\BookingRequestRepository;
+use App\Entity\Slot;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: BookingRequestRepository::class)]
@@ -36,6 +37,9 @@ class BookingRequest
     #[ORM\ManyToOne(targetEntity: Slot::class)]
     #[ORM\JoinColumn(nullable: false)]
     private Slot $slot;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $selectedDate = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -114,5 +118,17 @@ class BookingRequest
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getSelectedDate(): ?\DateTimeImmutable
+    {
+        return $this->selectedDate;
+    }
+
+    public function setSelectedDate(?\DateTimeImmutable $selectedDate): static
+    {
+        $this->selectedDate = $selectedDate;
+
+        return $this;
     }
 }

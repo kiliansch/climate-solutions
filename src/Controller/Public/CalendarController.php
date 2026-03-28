@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Public;
 
-use App\Dto\BookingRequestDTO;
+use App\CalendarBundle\Dto\BookingRequestDTO;
+use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
+use App\CalendarBundle\Service\BookingService;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
-use App\Service\BookingService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +21,7 @@ class CalendarController extends AbstractController
         private readonly CalendarRepository $calendarRepository,
         private readonly SlotRepository $slotRepository,
         private readonly BookingService $bookingService,
+        private readonly SlotUnavailabilityRepository $slotUnavailabilityRepository,
     ) {
     }
 
@@ -34,9 +36,40 @@ class CalendarController extends AbstractController
 
         $slots = $this->slotRepository->findOpenByCalendar($calendar);
 
+        $bookableSlots = [];
+        foreach ($slots as $slot) {
+            $isMultiDaySlot = $slot->getType() === 'day'
+                && $slot->getStartAt()->format('Y-m-d') !== $slot->getEndAt()->format('Y-m-d');
+
+            if ($isMultiDaySlot) {
+                $current = $slot->getStartAt();
+                $end = $slot->getEndAt();
+                while ($current <= $end) {
+                    $dayDate = $current->setTime(0, 0, 0);
+                    if (!$this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $dayDate)) {
+                        $bookableSlots[] = [
+                            'slot' => $slot,
+                            'selectedDate' => $current->format('Y-m-d'),
+                            'label' => $current->format('l, d F Y'),
+                            'isVirtual' => true,
+                        ];
+                    }
+                    $current = $current->modify('+1 day');
+                }
+            } else {
+                $bookableSlots[] = [
+                    'slot' => $slot,
+                    'selectedDate' => null,
+                    'label' => null,
+                    'isVirtual' => false,
+                ];
+            }
+        }
+
         return $this->render('public/calendar/show.html.twig', [
             'calendar' => $calendar,
             'slots' => $slots,
+            'bookableSlots' => $bookableSlots,
         ]);
     }
 

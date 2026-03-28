@@ -15,10 +15,4 @@ class CalendarController extends AbstractController
     {
         return $this->render('calendar/index.html.twig');
     }
-
-    #[Route('/calendar/{token}', name: 'calendar_public_view', methods: ['GET'])]
-    public function publicView(string $token): Response
-    {
-        return $this->render('calendar/index.html.twig', ['token' => $token]);
-    }
 }

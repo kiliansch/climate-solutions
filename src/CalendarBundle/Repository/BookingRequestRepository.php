@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Repository;
+namespace App\CalendarBundle\Repository;
 
-use App\Entity\BookingRequest;
+use App\CalendarBundle\Entity\BookingRequest;
+use App\Entity\Calendar;
 use App\Entity\Slot;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -48,5 +49,18 @@ class BookingRequestRepository extends ServiceEntityRepository
             ->orderBy('br.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+    }
+
+    public function hasAcceptedBookingsForCalendar(Calendar $calendar): bool
+    {
+        return (int) $this->createQueryBuilder('br')
+            ->select('COUNT(br.id)')
+            ->join('br.slot', 's')
+            ->andWhere('s.calendar = :calendar')
+            ->andWhere('br.status = :status')
+            ->setParameter('calendar', $calendar)
+            ->setParameter('status', 'accepted')
+            ->getQuery()
+            ->getSingleScalarResult() > 0;
     }
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Message;
+namespace App\CalendarBundle\Message;
 
 final readonly class BookingRequestCreatedMessage
 {
