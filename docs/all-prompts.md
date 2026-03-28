@@ -772,8 +772,9 @@ errors on bind-mounted volumes.
          args:
            UID: ${UID:-1000}
            GID: ${GID:-1000}
-   - The ${UID:-1000} syntax reads from the shell environment (Linux exports $UID automatically)
-     and falls back to 1000, keeping it portable across developers.
+   - The ${UID:-1000} syntax reads the UID from the environment (for example, run
+     `export UID=$(id -u) GID=$(id -g)` before `docker compose`) and falls back to 1000
+     if not set, keeping it portable across developers.
    - Do NOT use the top-level `user:` key as an alternative — build ARGs in the Dockerfile
      are the correct approach so the user is baked into the image.
 
