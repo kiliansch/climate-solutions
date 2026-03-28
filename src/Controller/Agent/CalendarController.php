@@ -159,6 +159,12 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('Calendar not found.');
         }
 
+        if (!$this->isCsrfTokenValid('agent_calendar_update_' . $id, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
         if ($this->bookingRequestRepository->hasAcceptedBookingsForCalendar($calendar)) {
             $this->addFlash('error', 'Cannot edit calendar: it has accepted booking requests.');
 
@@ -183,12 +189,18 @@ class CalendarController extends AbstractController
     }
 
     #[Route('/calendars/{id}/slots/{slotId}', name: 'agent_calendar_slot_delete', methods: ['DELETE'])]
-    public function deleteSlot(int $id, int $slotId): Response
+    public function deleteSlot(int $id, int $slotId, Request $request): Response
     {
         $calendar = $this->findCalendarForCurrentAgent($id);
 
         if ($calendar === null) {
             throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        if (!$this->isCsrfTokenValid('agent_calendar_slot_delete_' . $id . '_' . $slotId, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
         }
 
         $slot = $this->slotRepository->find($slotId);

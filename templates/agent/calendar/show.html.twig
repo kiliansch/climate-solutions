@@ -97,6 +97,7 @@
         <div class="edit-form">
             <form method="post" action="{{ path('agent_calendar_update', {id: calendar.id}) }}" class="form-row">
                 <input type="hidden" name="_method" value="PATCH">
+                <input type="hidden" name="_token" value="{{ csrf_token('agent_calendar_update_' ~ calendar.id) }}">
                 <div class="form-field">
                     <label for="edit-name">Calendar Name</label>
                     <input type="text" id="edit-name" name="name" value="{{ calendar.name }}" required {% if not canEdit %}disabled{% endif %}>
