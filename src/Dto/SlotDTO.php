@@ -16,16 +16,12 @@ final class SlotDTO
         #[Assert\NotBlank]
         #[Assert\Choice(choices: ['day', 'time'])]
         public readonly string $type = '',
-
         #[Assert\NotNull]
         public readonly \DateTimeImmutable $startAt = new \DateTimeImmutable(),
-
         #[Assert\NotNull]
         public readonly \DateTimeImmutable $endAt = new \DateTimeImmutable(),
-
         #[Assert\Length(max: 255)]
         public readonly ?string $location = null,
-
         #[Assert\Length(max: 255)]
         public readonly ?string $continent = null,
     ) {

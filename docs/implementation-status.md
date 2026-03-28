@@ -156,3 +156,9 @@
 - **DashboardController**: GET `/` (`app_home`) — no auth guard; redirects to `admin_agent_list` for ROLE_ADMIN, `agent_calendar_list` for ROLE_AGENT, `client_calendar_show` for ROLE_CLIENT, `app_login` for unauthenticated users
 - **config/packages/security.yaml**: `form_login.default_target_path: app_home`, `always_use_default_target_path: false` — post-login redirect hits the role-based dashboard
 - **templates/base.html.twig** nav updated: logo `🌱 Climate Solutions` links to `app_home`; client "My Calendar" link uses `client_calendar_show` route (was hardcoded `/client/calendar`); unauthenticated users see "Sign In" → `app_login` and "Register" → `app_register`
+
+## Code Quality ✅
+
+- PHPStan level 10 — phpstan.dist.neon with Symfony + Doctrine + strict-rules extensions
+- PHPCS PSR-12 — phpcs.xml.dist covering src/
+- Composer scripts: `composer phpstan`, `composer cs-check`, `composer cs-fix`, `composer quality`

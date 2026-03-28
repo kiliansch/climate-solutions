@@ -43,8 +43,13 @@ class BookingService
         $this->entityManager->persist($request);
         $this->entityManager->flush();
 
+        $id = $request->getId();
+        if ($id === null) {
+            throw new \LogicException('BookingRequest ID is null after flush.');
+        }
+
         $this->bus->dispatch(new BookingRequestCreatedMessage(
-            bookingRequestId: $request->getId(),
+            bookingRequestId: $id,
         ));
 
         return $request;

@@ -34,21 +34,27 @@ class CalendarRepository extends ServiceEntityRepository
 
     public function findByPublicToken(string $token): ?Calendar
     {
-        return $this->createQueryBuilder('c')
+        /** @var Calendar|null $result */
+        $result = $this->createQueryBuilder('c')
             ->andWhere('c.publicToken = :token')
             ->setParameter('token', $token)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 
     public function findByClient(User $client): ?Calendar
     {
-        return $this->createQueryBuilder('c')
+        /** @var Calendar|null $result */
+        $result = $this->createQueryBuilder('c')
             ->andWhere('c.client = :client')
             ->setParameter('client', $client)
             ->orderBy('c.createdAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $result;
     }
 }

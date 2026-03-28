@@ -21,6 +21,10 @@
 .phpunit.result.cache
 ###< symfony/phpunit-bridge ###
 
+# Code quality caches
+/.phpstan-cache/
+/phpstan.dist.neon.cache
+
 # IDE
 /.idea/
 /.vscode/
@@ -30,3 +34,12 @@
 # OS
 .DS_Store
 Thumbs.db
+
+###> phpstan/phpstan ###
+phpstan.neon
+###< phpstan/phpstan ###
+
+###> squizlabs/php_codesniffer ###
+/.phpcs-cache
+/phpcs.xml
+###< squizlabs/php_codesniffer ###

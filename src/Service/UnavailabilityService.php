@@ -15,7 +15,8 @@ class UnavailabilityService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly SlotRepository $slotRepository,
-    ) {}
+    ) {
+    }
 
     public function markUnavailable(
         Calendar $calendar,

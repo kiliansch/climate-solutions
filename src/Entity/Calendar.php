@@ -41,6 +41,7 @@ class Calendar
     #[ORM\Column(length: 36, unique: true)]
     private string $publicToken;
 
+    /** @var Collection<int, Slot> */
     #[ORM\OneToMany(targetEntity: Slot::class, mappedBy: 'calendar', fetch: 'EXTRA_LAZY')]
     private Collection $slots;
 

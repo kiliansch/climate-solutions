@@ -48,9 +48,12 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $sql = 'SELECT ' . $rsm->generateSelectClause(['u' => 'u'])
             . ' FROM users u WHERE u.roles::text LIKE :role ORDER BY u.created_at DESC';
 
-        return $this->getEntityManager()
+        /** @var User[] $result */
+        $result = $this->getEntityManager()
             ->createNativeQuery($sql, $rsm)
             ->setParameter('role', '%"' . $role . '"%')
             ->getResult();
+
+        return $result;
     }
 }

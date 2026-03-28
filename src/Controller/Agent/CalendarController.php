@@ -105,8 +105,10 @@ class CalendarController extends AbstractController
         $type = (string) $request->request->get('type', '');
         $startAtRaw = (string) $request->request->get('startAt', '');
         $endAtRaw = (string) $request->request->get('endAt', '');
-        $location = $request->request->get('location') ?: null;
-        $continent = $request->request->get('continent') ?: null;
+        $locationRaw = $request->request->get('location');
+        $location = (is_string($locationRaw) && $locationRaw !== '') ? $locationRaw : null;
+        $continentRaw = $request->request->get('continent');
+        $continent = (is_string($continentRaw) && $continentRaw !== '') ? $continentRaw : null;
 
         try {
             $startAt = new \DateTimeImmutable($startAtRaw);

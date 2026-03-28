@@ -12,12 +12,10 @@ final class BookingRequestDTO
         #[Assert\NotBlank]
         #[Assert\Length(max: 255)]
         public readonly string $customerName = '',
-
         #[Assert\NotBlank]
         #[Assert\Email]
         #[Assert\Length(max: 255)]
         public readonly string $customerEmail = '',
-
         public readonly ?string $message = null,
     ) {
     }

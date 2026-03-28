@@ -27,11 +27,13 @@ class InviteClientController extends AbstractController
     #[Route('/invite-client', name: 'agent_invite_client', methods: ['GET', 'POST'])]
     public function invite(Request $request): Response
     {
-        $calendarId = $request->query->getInt('calendarId') ?: null;
+        $queryCalendarId = $request->query->getInt('calendarId');
+        $calendarId = $queryCalendarId !== 0 ? $queryCalendarId : null;
 
         if ($request->isMethod('POST')) {
             $email = trim((string) $request->request->get('email', ''));
-            $calendarId = $request->request->getInt('calendarId') ?: null;
+            $postCalendarId = $request->request->getInt('calendarId');
+            $calendarId = $postCalendarId !== 0 ? $postCalendarId : null;
 
             $violations = $this->validator->validate($email, [
                 new Assert\NotBlank(),

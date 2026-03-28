@@ -50,6 +50,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\JoinColumn(nullable: true)]
     private ?self $invitedBy = null;
 
+    /** @var Collection<int, User> */
     #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'invitedBy', fetch: 'EXTRA_LAZY')]
     private Collection $invitedUsers;
 
@@ -81,8 +82,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    /** @return non-empty-string */
     public function getUserIdentifier(): string
     {
+        assert($this->email !== '');
+
         return $this->email;
     }
 
@@ -94,7 +98,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $roles = $this->roles;
         $roles[] = 'ROLE_USER';
 
-        return array_unique($roles);
+        return array_values(array_unique($roles));
     }
 
     /**

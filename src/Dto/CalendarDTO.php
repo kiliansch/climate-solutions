@@ -12,11 +12,9 @@ final class CalendarDTO
         #[Assert\NotBlank]
         #[Assert\Length(max: 255)]
         public readonly string $name = '',
-
         #[Assert\NotBlank]
         #[Assert\Choice(choices: ['timeslot', 'dayslot'])]
         public readonly string $displayMode = 'dayslot',
-
         #[Assert\NotNull]
         #[Assert\Positive]
         public readonly int $clientId = 0,

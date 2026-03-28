@@ -15,10 +15,8 @@ final class UnavailabilityDTO
     public function __construct(
         #[Assert\NotBlank]
         public readonly \DateTimeImmutable $startAt = new \DateTimeImmutable(),
-
         #[Assert\NotBlank]
         public readonly \DateTimeImmutable $endAt = new \DateTimeImmutable(),
-
         public readonly ?string $reason = null,
     ) {
     }

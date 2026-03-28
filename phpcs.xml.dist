@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<ruleset name="Calendar Booking System">
+    <description>PSR-12 coding standard</description>
+
+    <file>src</file>
+
+    <arg name="basepath" value="."/>
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <rule ref="PSR12"/>
+
+    <!-- Exclude generated files -->
+    <exclude-pattern>src/Migrations/*</exclude-pattern>
+</ruleset>

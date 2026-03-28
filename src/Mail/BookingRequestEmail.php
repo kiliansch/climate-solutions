@@ -20,7 +20,8 @@ final class BookingRequestEmail extends Email
             ->to($agent->getEmail())
             ->subject('New booking request received')
             ->text(sprintf(
-                "Hello %s,\n\nYou have received a new booking request from %s (%s).\n\nSlot: %s – %s\n\nMessage: %s\n\nPlease log in to review and respond.",
+                "Hello %s,\n\nYou have received a new booking request from %s (%s)."
+                . "\n\nSlot: %s – %s\n\nMessage: %s\n\nPlease log in to review and respond.",
                 $agent->getName(),
                 $bookingRequest->getCustomerName(),
                 $bookingRequest->getCustomerEmail(),
