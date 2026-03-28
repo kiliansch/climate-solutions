@@ -730,6 +730,83 @@ Mark Code Quality / Prompt CQ1 as complete ✅.
 
 ---
 
+## Docker — Infrastructure
+
+### Prompt D1 — Fix UID/GID Mismatch (Container root vs Host 1000:1000)
+
+```
+### CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+The PHP container currently runs as root. The host developer user is UID=1000, GID=1000.
+Any files written by the container (vendor/, var/cache/, migrations, etc.) are owned by
+root on the host, requiring sudo to edit or delete them.
+
+### PROBLEM
+UID/GID mismatch between the container (root) and the host (1000:1000) causes permission
+errors on bind-mounted volumes.
+
+### TASK
+
+1. Update docker/php/Dockerfile:
+   - After installing system packages, declare build ARGs and create a matching user:
+       ARG UID=1000
+       ARG GID=1000
+       RUN groupadd -g ${GID} appuser \
+        && useradd -u ${UID} -g appuser -m appuser
+   - Transfer ownership of the app directory:
+       RUN mkdir -p /var/www/html && chown -R appuser:appuser /var/www/html
+   - Switch to the non-root user BEFORE ENTRYPOINT/CMD:
+       USER appuser
+
+2. Update entrypoint.sh:
+   - The script already runs composer install and symfony commands.
+     Since USER appuser is set in the Dockerfile, these will now run as UID 1000 automatically.
+   - If any step still requires root (e.g. apt installs), move those steps to the Dockerfile
+     BEFORE the USER appuser instruction — never run apt inside entrypoint.sh.
+
+3. Update docker-compose.yml — php service build section:
+       build:
+         context: .
+         dockerfile: docker/php/Dockerfile
+         args:
+           UID: ${UID:-1000}
+           GID: ${GID:-1000}
+   - The ${UID:-1000} syntax reads the UID from the environment (for example, run
+     `export UID=$(id -u) GID=$(id -g)` before `docker compose`) and falls back to 1000
+     if not set, keeping it portable across developers.
+   - Do NOT use the top-level `user:` key as an alternative — build ARGs in the Dockerfile
+     are the correct approach so the user is baked into the image.
+
+4. Nginx service — no changes needed (volume is mounted :ro).
+
+5. Rebuild and verify:
+       docker compose build --no-cache php
+       docker compose up -d
+       docker compose exec php id
+       # Expected: uid=1000(appuser) gid=1000(appuser) groups=1000(appuser)
+       ls -la var/
+       # Files should now be owned by your host user (1000), not root
+
+### NOTE
+Keep UID/GID as build ARGs — never hard-code them in the Dockerfile.
+For per-developer overrides, add to compose.override.yaml:
+    services:
+      php:
+        build:
+          args:
+            UID: ${UID:-1000}
+            GID: ${GID:-1000}
+
+### UPDATE DOCS
+Append to docs/implementation-status.md under a new section ## Infrastructure:
+- PHP container runs as appuser (UID/GID 1000), matching host developer user
+- Build ARGs UID + GID passed via docker-compose.yml from shell environment
+Mark Docker / Prompt D1 as complete.
+```
+
+---
+
 ## End of Archive
 
-21 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
+22 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.

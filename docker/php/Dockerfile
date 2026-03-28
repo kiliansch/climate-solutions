@@ -28,11 +28,21 @@ RUN curl -1sLf 'https://dl.cloudsmith.io/public/symfony/stable/setup.deb.sh' | b
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user matching host developer UID/GID
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -g ${GID} appuser \
+    && useradd -u ${UID} -g appuser -m appuser
+
 WORKDIR /var/www/html
+
+RUN mkdir -p /var/www/html && chown -R appuser:appuser /var/www/html
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
 COPY docker/php/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+USER appuser
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]
