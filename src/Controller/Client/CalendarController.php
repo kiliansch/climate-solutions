@@ -48,15 +48,24 @@ class CalendarController extends AbstractController
         $unavailabilities = $this->unavailabilityRepository->findByCalendar($calendar);
 
         $blockedDatesByUnavailability = [];
-        foreach ($unavailabilities as $unavailability) {
-            $blockedDates = $this->slotUnavailabilityRepository->createQueryBuilder('su')
-                ->select('su.blockedDate')
-                ->andWhere('su.unavailability = :unavailability')
-                ->setParameter('unavailability', $unavailability)
-                ->orderBy('su.blockedDate', 'ASC')
+
+        if ($unavailabilities !== []) {
+            foreach ($unavailabilities as $unavailability) {
+                $blockedDatesByUnavailability[$unavailability->getId()] = [];
+            }
+
+            $results = $this->slotUnavailabilityRepository->createQueryBuilder('su')
+                ->select('IDENTITY(su.unavailability) AS unavailabilityId', 'su.blockedDate AS blockedDate')
+                ->andWhere('su.unavailability IN (:unavailabilities)')
+                ->setParameter('unavailabilities', $unavailabilities)
+                ->orderBy('unavailabilityId', 'ASC')
+                ->addOrderBy('su.blockedDate', 'ASC')
                 ->getQuery()
-                ->getSingleColumnResult();
-            $blockedDatesByUnavailability[$unavailability->getId()] = $blockedDates;
+                ->getArrayResult();
+
+            foreach ($results as $row) {
+                $blockedDatesByUnavailability[(int) $row['unavailabilityId']][] = $row['blockedDate'];
+            }
         }
 
         return $this->render('client/calendar/show.html.twig', [
