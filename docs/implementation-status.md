@@ -168,5 +168,5 @@
 ### Docker / Prompt D1 ✅
 - PHP container runs as `appuser` (UID/GID 1000), matching host developer user
 - Build ARGs `UID` + `GID` passed via `docker-compose.yml` from shell environment (`${UID:-1000}`, `${GID:-1000}`)
-- `compose.override.yaml` includes per-developer UID/GID overrides
+- `compose.override.yaml` can be used for per-developer UID/GID overrides (ideally via a local, untracked override file so the shared override stays focused on common settings)
 - No changes needed for Nginx (volumes mounted `:ro`) or entrypoint.sh (runs as `appuser` via Dockerfile `USER` directive)
