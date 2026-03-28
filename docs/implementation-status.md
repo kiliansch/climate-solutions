@@ -162,3 +162,11 @@
 - PHPStan level 10 — phpstan.dist.neon with Symfony + Doctrine + strict-rules extensions
 - PHPCS PSR-12 — phpcs.xml.dist covering src/
 - Composer scripts: `composer phpstan`, `composer cs-check`, `composer cs-fix`, `composer quality`
+
+## Infrastructure
+
+### Docker / Prompt D1 ✅
+- PHP container runs as `appuser` (UID/GID 1000), matching host developer user
+- Build ARGs `UID` + `GID` passed via `docker-compose.yml` from shell environment (`${UID:-1000}`, `${GID:-1000}`)
+- `compose.override.yaml` includes per-developer UID/GID overrides
+- No changes needed for Nginx (volumes mounted `:ro`) or entrypoint.sh (runs as `appuser` via Dockerfile `USER` directive)
