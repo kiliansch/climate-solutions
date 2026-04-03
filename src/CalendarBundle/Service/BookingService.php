@@ -80,15 +80,19 @@ class BookingService
         $request->setStatus('accepted');
 
         if ($slot->getType() === 'day' && $selectedDate !== null) {
+            if ($this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $selectedDate)) {
+                throw new \DomainException(sprintf(
+                    'Cannot accept booking: the date %s is already blocked for this slot.',
+                    $selectedDate->format('Y-m-d'),
+                ));
+            }
+
             $slotUnavailability = new SlotUnavailability();
             $slotUnavailability->setSlot($slot);
             $slotUnavailability->setBlockedDate($selectedDate);
             $this->entityManager->persist($slotUnavailability);
 
-            // Flush the new block so the DB query below can count it
-            $this->entityManager->flush();
-
-            if ($this->slotUnavailabilityRepository->areAllDaysBlockedForSlot($slot)) {
+            if ($this->slotUnavailabilityRepository->areAllDaysBlockedForSlot($slot, $selectedDate)) {
                 $slot->setStatus('booked');
             }
 

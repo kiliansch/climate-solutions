@@ -48,13 +48,26 @@ class SlotUnavailabilityRepository extends ServiceEntityRepository
             ->getSingleScalarResult() > 0;
     }
 
-    public function areAllDaysBlockedForSlot(Slot $slot): bool
+    public function areAllDaysBlockedForSlot(Slot $slot, ?\DateTimeImmutable $additionalDate = null): bool
     {
+        $blockedDates = $this->findBlockedDatesForSlot($slot);
+
+        $blockedSet = [];
+        foreach ($blockedDates as $date) {
+            $normalizedDate = $date->setTimezone(new \DateTimeZone('UTC'));
+            $blockedSet[$normalizedDate->format('Y-m-d')] = true;
+        }
+
+        if ($additionalDate !== null) {
+            $normalizedAdditional = $additionalDate->setTimezone(new \DateTimeZone('UTC'));
+            $blockedSet[$normalizedAdditional->format('Y-m-d')] = true;
+        }
+
         $current = $slot->getStartAt()->setTimezone(new \DateTimeZone('UTC'))->setTime(0, 0, 0);
         $end = $slot->getEndAt()->setTimezone(new \DateTimeZone('UTC'))->setTime(0, 0, 0);
 
         while ($current <= $end) {
-            if (!$this->isDateBlockedForSlot($slot, $current)) {
+            if (!isset($blockedSet[$current->format('Y-m-d')])) {
                 return false;
             }
             $current = $current->modify('+1 day');

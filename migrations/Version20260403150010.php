@@ -25,7 +25,9 @@ final class Version20260403150010 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        // this down() migration is auto-generated, please modify it to your needs
-        $this->addSql('ALTER TABLE slot_unavailabilities ALTER unavailability_id SET NOT NULL');
+        $this->throwIrreversibleMigrationException(
+            'This migration cannot be safely rolled back because slot_unavailabilities.unavailability_id '
+            . 'may contain NULL values created after dropping the NOT NULL constraint.'
+        );
     }
 }
