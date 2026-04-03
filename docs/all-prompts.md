@@ -1403,4 +1403,110 @@ Append to docs/implementation-status.md under Bug Fixes / Feature Gaps:
 Mark this prompt as complete.
 
 ---
+
+# CalendarBundle + FullCalendar
+
+CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+Depends on: CalendarSubscriber (shared public calendar view), Slot entity with type ENUM(day, time).
+
+TASK
+Make time-type slots render as timed blocks (not full-day bars) in the shared FullCalendar view.
+
+The bundle serialises CalendarBundle\Entity\Event to FullCalendar JSON. FullCalendar infers allDay=true
+when the start/end times are both midnight (00:00:00). Passing real HH:MM times causes it to render a
+timed block spanning exactly that period. Day-type slots must stay as all-day events.
+
+--- 1. CalendarSubscriber (src/EventSubscriber/CalendarSubscriber.php) ---
+
+In onCalendarSetData, when building the Event object for each slot:
+
+a) time-type slots:
+   - Pass $slot->getStartAt() as the start argument.
+   - Pass $slot->getEndAt() as the end argument.
+   - Both are DateTimeImmutable objects with real times; CalendarBundle will serialize them with
+     their time component, and FullCalendar will render a timed block.
+   - Do NOT call setOptions(['allDay' => false]) — FullCalendar infers this automatically from the
+     non-midnight times. However, if existing slots were stored at midnight due to day-coercion, you
+     MAY need to explicitly set allDay => false via $event->addOption('allDay', false).
+
+b) day-type slots (single-day OR multi-day virtual entries from BF1.2):
+   - Continue passing only the date (start = midnight, end = null or midnight of next day).
+   - FullCalendar will render these as all-day bars, which is correct for day-type slots.
+
+--- 2. Twig calendar template (public calendar view) ---
+
+No Twig changes are required for the calendar widget itself. The FullCalendar JS already uses
+timeGridWeek / timeGridDay views (or dayGridMonth). If the current defaultView is dayGridMonth only,
+the timed block will still show a time label in month view but won't show the span visually.
+
+To make the time span visible, ensure the FullCalendar initialisation JS includes the timeGrid plugin
+and adds the timeGridWeek view option:
+
+```js
+document.addEventListener('DOMContentLoaded', () => {
+    const calendarEl = document.getElementById('calendar-holder');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        defaultView: 'timeGridWeek',   // or 'dayGridMonth' — keep existing or switch as desired
+        headerToolbar: {               // v5+ uses headerToolbar; v4 uses header
+            left:   'prev,next today',
+            center: 'title',
+            right:  'dayGridMonth,timeGridWeek,timeGridDay',
+        },
+        eventSources: [{
+            url: "{{ path('fc_load_events') }}",
+            method: 'POST',
+            extraParams: { filters: JSON.stringify({}) },
+        }],
+        plugins: ['interaction', 'dayGrid', 'timeGrid'],  // v4 plugin list
+        timeZone: 'UTC',
+    });
+    calendar.render();
+});
+```
+
+If the project already uses FullCalendar v5+, replace plugins array with the ESM import approach
+and use headerToolbar instead of header.
+
+--- 3. Slot time values — verify no midnight-coercion on time-type slots ---
+
+BF1.1 introduced coercion: for day-type slots, startAt/endAt are forced to midnight.
+Confirm this coercion is ONLY applied when slot.type === 'day'.
+In SlotDTO (or wherever coercion happens), the guard must be:
+
+    if ($dto->type === 'day') {
+        // coerce to midnight
+    }
+    // time-type slots: leave startAt/endAt untouched
+
+If any existing time-type slots were accidentally stored with midnight times, they will render as
+all-day events even after this fix. A one-time console command or migration is NOT required, but
+document this edge case in implementation-status.md.
+
+--- 4. CalendarBundle Event title for time slots ---
+
+Optionally enrich the event title to include the time range for clarity in month view:
+    $title = sprintf('%s–%s', $slot->getStartAt()->format('H:i'), $slot->getEndAt()->format('H:i'));
+    $event = new Event($title, $slot->getStartAt(), $slot->getEndAt());
+
+This is cosmetic only — skip if the existing title logic is sufficient.
+
+--- Rules ---
+- Change ONLY CalendarSubscriber and the FullCalendar JS block in the public calendar template.
+- Do NOT touch any entity, migration, DTO, or service.
+- Do NOT add allDay => false to day-type slot events.
+- Follow PSR-12, strict_types=1, PHP 8 attributes, constructor injection.
+- All changes must pass PHPStan level 10 (no new ignoreErrors entries).
+
+UPDATE DOCS
+Append to docs/implementation-status.md under Bug Fixes / Feature Gaps:
+- Time-type slots render as timed blocks in the shared FullCalendar view. CalendarSubscriber passes
+  real startAt/endAt DateTime values for time-type slots; FullCalendar infers allDay=false from the
+  non-midnight times and renders the event spanning the correct time range. Day-type slots remain
+  all-day bars. timeGridWeek/timeGridDay views added to the FullCalendar toolbar.
+
+Mark this prompt as complete.
+
+---
 ## End of Archive
