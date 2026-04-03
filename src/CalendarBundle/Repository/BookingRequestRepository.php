@@ -39,6 +39,23 @@ class BookingRequestRepository extends ServiceEntityRepository
     /**
      * @return BookingRequest[]
      */
+    public function findPendingBySlotAndDate(Slot $slot, \DateTimeImmutable $selectedDate): array
+    {
+        return $this->createQueryBuilder('br')
+            ->andWhere('br.slot = :slot')
+            ->andWhere('br.status = :status')
+            ->andWhere('br.selectedDate = :selectedDate')
+            ->setParameter('slot', $slot)
+            ->setParameter('status', 'pending')
+            ->setParameter('selectedDate', $selectedDate)
+            ->orderBy('br.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return BookingRequest[]
+     */
     public function findByAgent(User $agent): array
     {
         return $this->createQueryBuilder('br')

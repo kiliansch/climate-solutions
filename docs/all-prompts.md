@@ -1189,6 +1189,93 @@ Mark **Prompt TZ1** as complete.
 
 ---
 
+# Prompt: BF3 — Fix Multi-Day Dayslot Booking Acceptance
+
+CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+Depends on BF2.1 (SlotUnavailability entity + partial blocking) and BF1.2 (selectedDate on BookingRequest).
+
+PROBLEM
+When an agent accepts a booking request for a specific day (selectedDate) within a multi-day
+day-type slot, BookingService::acceptRequest() sets the slot status to `booked` unconditionally.
+This removes the entire slot from SlotRepository::findOpenByCalendar results, making all
+remaining days (e.g. Friday and Sunday in a Fri–Sun slot) disappear from both the public
+calendar and the agent view.
+
+EXPECTED BEHAVIOUR
+- Accepting a booking for one day within a multi-day day-type slot should block only that day.
+- The slot status must remain `open` as long as at least one day in the range is still unbooked.
+- The slot status must be set to `booked` only when ALL days in the slot range are booked/blocked.
+- The public calendar view must continue to show the remaining unbooked days as bookable.
+- The agent booking list must reflect the correct per-day status.
+
+TASK
+
+1. Update BookingService::acceptRequest() in src/CalendarBundle/Service/BookingService.php
+
+   Current behaviour: always sets $slot->setStatus('booked').
+
+   New behaviour:
+   a. If the slot type is `day` AND the accepted request has a non-null selectedDate:
+      - Create a SlotUnavailability record for that selectedDate (reuse the same
+        SlotUnavailability entity from BF2.1, but with a null unavailability FK —
+        OR add a nullable unavailability relation; see note below).
+      - After creating the SlotUnavailability record, call a helper (see step 2) to
+        check whether ALL days in the slot's startAt–endAt range are now blocked
+        (covered by SlotUnavailability records or by an Unavailability period).
+        - If ALL days are blocked → set slot status to `booked`.
+        - If at least one day remains unblocked → leave slot status as `open`.
+      - Still set all OTHER pending BookingRequests for the same slot AND same
+        selectedDate to `declined` (not requests for other days of the same slot).
+
+   b. If the slot type is `time` OR selectedDate is null → keep existing behaviour
+      (set slot status to `booked`, decline all other pending requests for this slot).
+
+   NOTE on SlotUnavailability FK: The current entity has a non-null `unavailability`
+   FK. Add a nullable `unavailability` field (make the existing ManyToOne nullable)
+   so that booking-driven blocks can be stored without an Unavailability parent.
+   Alternatively, add a separate boolean flag `bookedByRequest bool default false`
+   to distinguish availability-blocks from booking-blocks — choose whichever is
+   simpler to implement cleanly.
+   Generate a Doctrine migration for any entity changes.
+
+2. Add a helper method to SlotUnavailabilityRepository (or BookingService):
+
+   areAllDaysBlockedForSlot(Slot $slot): bool
+   - Iterates each date in the slot's startAt–endAt range (inclusive, day by day).
+   - For each date, checks isDateBlockedForSlot($slot, $date) (already exists).
+   - Returns true only if every date in the range is blocked.
+
+3. Update the "decline other pending requests" logic in acceptRequest():
+
+   For day-type slots with a selectedDate, only decline OTHER pending requests
+   that share the SAME selectedDate. Do NOT decline pending requests for different
+   days of the same slot (those days are still open for booking).
+
+4. Update Public GET /{token} controller / template logic:
+
+   No changes should be needed here IF the slot status stays `open` — the existing
+   BF2.1 logic in the public controller already excludes SlotUnavailability-blocked
+   dates when expanding virtual per-day entries. Verify this is the case and confirm
+   in the docs.
+
+5. Update Agent booking view (templates/agent/booking/index.html.twig):
+
+   The agent booking list shows booking requests per slot. Since the slot is no longer
+   set to `booked` prematurely, no template change should be needed. Verify and confirm.
+
+UPDATE DOCS
+Append to docs/implementation-status.md under Bug Fixes:
+- BF3 Multi-day dayslot booking acceptance fix: accepting a booking for a specific
+  selectedDate no longer marks the entire slot as booked; a SlotUnavailability record
+  is created for the booked day instead; slot status becomes booked only when all days
+  are covered; only same-day pending requests are declined.
+
+Mark Prompt BF3 as complete.
+
+---
+
 ## End of Archive
 
 25 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
