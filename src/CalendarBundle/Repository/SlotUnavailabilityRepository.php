@@ -48,6 +48,21 @@ class SlotUnavailabilityRepository extends ServiceEntityRepository
             ->getSingleScalarResult() > 0;
     }
 
+    public function areAllDaysBlockedForSlot(Slot $slot): bool
+    {
+        $current = $slot->getStartAt()->setTimezone(new \DateTimeZone('UTC'))->setTime(0, 0, 0);
+        $end = $slot->getEndAt()->setTimezone(new \DateTimeZone('UTC'))->setTime(0, 0, 0);
+
+        while ($current <= $end) {
+            if (!$this->isDateBlockedForSlot($slot, $current)) {
+                return false;
+            }
+            $current = $current->modify('+1 day');
+        }
+
+        return true;
+    }
+
     /**
      * Fetches blocked dates for multiple slots in a single query.
      *

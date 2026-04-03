@@ -6,6 +6,7 @@ namespace App\CalendarBundle\Service;
 
 use App\CalendarBundle\Dto\BookingRequestDTO;
 use App\CalendarBundle\Entity\BookingRequest;
+use App\CalendarBundle\Entity\SlotUnavailability;
 use App\CalendarBundle\Message\BookingRequestCreatedMessage;
 use App\CalendarBundle\Repository\BookingRequestRepository;
 use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
@@ -73,13 +74,38 @@ class BookingService
     {
         $this->assertAgentOwnsSlot($request->getSlot(), $agent);
 
-        $request->setStatus('accepted');
-        $request->getSlot()->setStatus('booked');
+        $slot = $request->getSlot();
+        $selectedDate = $request->getSelectedDate();
 
-        $pendingRequests = $this->bookingRequestRepository->findPendingBySlot($request->getSlot());
-        foreach ($pendingRequests as $pending) {
-            if ($pending->getId() !== $request->getId()) {
-                $pending->setStatus('declined');
+        $request->setStatus('accepted');
+
+        if ($slot->getType() === 'day' && $selectedDate !== null) {
+            $slotUnavailability = new SlotUnavailability();
+            $slotUnavailability->setSlot($slot);
+            $slotUnavailability->setBlockedDate($selectedDate);
+            $this->entityManager->persist($slotUnavailability);
+
+            // Flush the new block so the DB query below can count it
+            $this->entityManager->flush();
+
+            if ($this->slotUnavailabilityRepository->areAllDaysBlockedForSlot($slot)) {
+                $slot->setStatus('booked');
+            }
+
+            $sameDayPending = $this->bookingRequestRepository->findPendingBySlotAndDate($slot, $selectedDate);
+            foreach ($sameDayPending as $pending) {
+                if ($pending->getId() !== $request->getId()) {
+                    $pending->setStatus('declined');
+                }
+            }
+        } else {
+            $slot->setStatus('booked');
+
+            $pendingRequests = $this->bookingRequestRepository->findPendingBySlot($slot);
+            foreach ($pendingRequests as $pending) {
+                if ($pending->getId() !== $request->getId()) {
+                    $pending->setStatus('declined');
+                }
             }
         }
 

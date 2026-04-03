@@ -30,8 +30,8 @@ class SlotUnavailability
     private Slot $slot;
 
     #[ORM\ManyToOne(targetEntity: Unavailability::class)]
-    #[ORM\JoinColumn(nullable: false)]
-    private Unavailability $unavailability;
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Unavailability $unavailability = null;
 
     #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $blockedDate;
@@ -53,12 +53,12 @@ class SlotUnavailability
         return $this;
     }
 
-    public function getUnavailability(): Unavailability
+    public function getUnavailability(): ?Unavailability
     {
         return $this->unavailability;
     }
 
-    public function setUnavailability(Unavailability $unavailability): static
+    public function setUnavailability(?Unavailability $unavailability): static
     {
         $this->unavailability = $unavailability;
 
