@@ -1276,7 +1276,80 @@ Mark Prompt BF3 as complete.
 
 ---
 
+# Prompt: DB Seeder + app:db:fresh Command
+
+CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+
+Stack: Symfony 7, PHP 8.3, PostgreSQL 16, Doctrine ORM, PHP 8 attributes.
+
+TASK
+Introduce a database seeder and a "fresh" reset command to elevate the local development workflow.
+
+---
+
+### 1. DatabaseSeeder service — src/DataFixtures/DatabaseSeeder.php
+
+Create src/DataFixtures/DatabaseSeeder.php (NOT a Doctrine Fixture — a plain Symfony service with #[AsTaggedItem] so it can be called by the command).
+
+Responsibilities (run in this order):
+a. Create one ROLE_ADMIN user
+   - email: admin@example.com | password: password | name: Admin User | status: active
+b. Create two ROLE_AGENT users
+   - agent1@example.com / password / "Alice Agent"
+   - agent2@example.com / password / "Bob Agent"
+c. Create two ROLE_CLIENT users
+   - client1@example.com / password / "Carol Client"
+   - client2@example.com / password / "Dave Client"
+d. Create one Calendar per agent (assigned to client1 and client2 respectively)
+   - Calendar 1: name "Alice's Calendar", displayMode "dayslot", agent = agent1, client = client1
+   - Calendar 2: name "Bob's Calendar",   displayMode "timeslot", agent = agent2, client = client2
+e. Create 3 open Slots for each calendar (mix of day and time types, covering the next 30 days)
+f. Flush once at the end — never flush inside a loop.
+
+Rules:
+- Use UserPasswordHasherInterface to hash passwords.
+- Use new \DateTimeImmutable('now', new \DateTimeZone('UTC')) everywhere a date is needed (matches TZ1 requirement).
+- Use constructor injection only. No static methods.
+- Check whether each seed user already exists (findOneBy email) before persisting — idempotent seeder.
+- The seeder MUST be a service (not extend AbstractFixture) so it can be called from the console command.
+- Follow PSR-12, strict_types=1, PHP 8 attributes.
+- All new classes must pass PHPStan level 10.
+
+---
+
+### 2. Console command — src/Command/DatabaseFreshCommand.php
+
+Create src/Command/DatabaseFreshCommand.php
+
+Command name: app:db:fresh
+
+Steps performed (in order):
+1. Drop the database:          doctrine:database:drop --force --if-exists
+2. Create the database:        doctrine:database:create
+3. Run all migrations:         doctrine:migrations:migrate --no-interaction
+4. Call DatabaseSeeder->seed()
+
+Implementation notes:
+- Inject DatabaseSeeder and use Symfony\Component\Console\Command\Command.
+- Use $this->getApplication()->find(...) + (new ArrayInput([...]))->setInteractive(false) to run the sub-commands, routing their output to $output.
+- Exit with Command::FAILURE if any sub-command returns a non-zero exit code; print a clear error message.
+- Add a confirmation prompt when running in non-TTY / CI environments: skip it when the --no-interaction option is passed.
+- Command description: "Drops the database, runs all migrations, and seeds the database with development fixtures."
+- Follow PSR-12, strict_types=1, PHP 8 attributes (#[AsCommand]).
+- Pass PHPStan level 10.
+
+---
+
+UPDATE DOCS
+Append to docs/implementation-status.md under a new section "Developer Tooling":
+- DatabaseSeeder src/DataFixtures/DatabaseSeeder.php — seeds 1 admin, 2 agents, 2 clients, 2 calendars, 6 slots; idempotent; UTC-aware dates
+- app:db:fresh console command — drops DB, recreates, runs all migrations, calls DatabaseSeeder; aborts on failure
+
+---
+
 ## End of Archive
 
-25 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
+27 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
 
