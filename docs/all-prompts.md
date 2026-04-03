@@ -1021,7 +1021,175 @@ Mark Bundle Refactor / Prompt BF2 as complete.
 
 ---
 
+# Prompt TZ1 — UTC Timezone-Aware Date Storage
+
+## Context
+
+Read `docs/implementation-status.md` and `.github/copilot-instructions.md` before starting. Do not re-create anything already listed as completed.
+
+All date values in the system must be stored **with UTC timezone information**. This affects every Doctrine entity field that holds a date or datetime value, and every DTO / validator that accepts date input.
+
+***
+
+## Scope — Affected Entities and Fields
+
+The following entity fields must be changed from **`DateTimeImmutable` (no timezone)** to **`DateTimeImmutable` with explicit UTC timezone**:
+
+| Entity | Field(s) |
+|---|---|
+| `User` | `createdAt` |
+| `Invitation` | `expiresAt`, `acceptedAt` |
+| `Calendar` | `createdAt` |
+| `Slot` | `startAt`, `endAt`, `createdAt` |
+| `Unavailability` | `startAt`, `endAt` |
+| `BookingRequest` | `createdAt`, `selectedDate` |
+| `Notification` | `readAt`, `createdAt` |
+| `SlotUnavailability` | `blockedDate` |
+
+***
+
+## Task
+
+### 1. Doctrine Column Type — Switch to `datetimetz_immutable`
+
+For **every** entity field listed above, change the Doctrine column type from `datetime_immutable` to `datetimetz_immutable`.
+
+In PHP attributes this means:
+
+```php
+// Before
+#[ORM\Column(type: 'datetime_immutable')]
+private DateTimeImmutable $startAt;
+
+// After
+#[ORM\Column(type: 'datetimetz_immutable')]
+private DateTimeImmutable $startAt;
+```
+
+`datetimetz_immutable` maps to `TIMESTAMP WITH TIME ZONE` in PostgreSQL 16, which stores and returns the UTC offset. Doctrine will handle serialisation/deserialisation correctly; no PHP type change is needed — `DateTimeImmutable` remains correct.
+
+### 2. Ensure UTC on Persist — Entity Setters and `prePersist` Hooks
+
+Every place a `DateTimeImmutable` value is created and written to one of the above fields must produce a **UTC-zoned value**:
+
+```php
+new DateTimeImmutable('now', new \DateTimeZone('UTC'))
+// or equivalently
+new \DateTimeImmutable('now', new \DateTimeZone('UTC'))
+```
+
+Apply this to:
+
+- All `#[ORM\HasLifecycleCallbacks]` / `prePersist` methods that set `createdAt`, `updatedAt`, or similar fields.
+- `Invitation::expiresAt` creation in `InvitationService::createInvitation` (currently `new DateTimeImmutable('+7 days')` — change to `new DateTimeImmutable('+7 days', new \DateTimeZone('UTC'))`).
+- Any other place in a service or entity where a `new DateTimeImmutable(...)` is assigned to one of the listed fields.
+- `SlotUnavailability::blockedDate` construction in `UnavailabilityService`.
+
+### 3. DTOs — Validate and Normalise to UTC
+
+For every DTO that contains a date field mapped to one of the listed entity columns, ensure the deserialized value is normalised to UTC before use:
+
+#### `SlotDTO` — `startAt`, `endAt`
+
+After `MapRequestPayload` deserialises the incoming ISO-8601 string:
+
+```php
+// Normalise to UTC — add a custom Symfony Validator constraint or normalise in the controller/service
+$startAt = $dto->startAt->setTimezone(new \DateTimeZone('UTC'));
+$endAt   = $dto->endAt->setTimezone(new \DateTimeZone('UTC'));
+```
+
+Preferred approach: add a **`NormalizeToUtc`** Symfony Validator constraint (see section 5) or perform the conversion explicitly in the service/controller before persisting.
+
+#### `UnavailabilityDTO` — `startAt`, `endAt`
+
+Same treatment. The normalisation already performs end-of-day coercion (BF1.7); this must happen **after** timezone conversion so the coercion operates on the UTC value:
+
+```php
+$start = $dto->startAt->setTimezone(new \DateTimeZone('UTC'));
+$end   = $dto->endAt->setTimezone(new \DateTimeZone('UTC'));
+// then apply end-of-day coercion if same date
+```
+
+#### `BookingRequestDTO` — `selectedDate`
+
+Same treatment for the optional `selectedDate` field.
+
+### 4. Repository Queries — Use UTC DateTimeImmutable Values
+
+Every `SlotRepository`, `UnavailabilityRepository`, `BookingRequestRepository`, or other repository that accepts `DateTimeImmutable` parameters for range queries must receive UTC values. Since normalisation is enforced in services and DTOs (step 3), no query changes should be needed — but verify that no repository constructs its own `new DateTimeImmutable(...)` without a UTC timezone.
+
+### 5. Custom Validator Constraint `NormalizeToUtc` (optional but preferred)
+
+Create `src/Validator/NormalizeToUtc.php` and `src/Validator/NormalizeToUtcValidator.php`:
+
+- Attribute: `#[\Attribute(\Attribute::TARGET_PROPERTY)]`
+- Validator: if the value is a `DateTimeInterface` and its timezone is not `UTC`, convert it via `$value->setTimezone(new \DateTimeZone('UTC'))` and set it back on the DTO property.
+- Apply `#[NormalizeToUtc]` to all `DateTimeImmutable` fields in `SlotDTO`, `UnavailabilityDTO`, and `BookingRequestDTO`.
+
+If a custom constraint is not used, perform the UTC conversion explicitly in the corresponding service method before any persistence call.
+
+### 6. Doctrine Migration
+
+Generate a single Doctrine migration for **all** column type changes at once:
+
+```bash
+php bin/console doctrine:migrations:diff
+php bin/console doctrine:migrations:migrate
+```
+
+The generated SQL will change each `TIMESTAMP WITHOUT TIME ZONE` column to `TIMESTAMP WITH TIME ZONE`. Review the generated migration before running to confirm only type changes appear — no data loss should occur because PostgreSQL can cast `timestamp` to `timestamptz` implicitly, treating the existing stored values as UTC (which they already are).
+
+If the migration includes an explicit `ALTER COLUMN ... USING ... AT TIME ZONE 'UTC'` cast, keep it. If not, add it manually to the `up()` method for safety:
+
+```sql
+ALTER TABLE slot ALTER COLUMN start_at TYPE TIMESTAMP WITH TIME ZONE USING start_at AT TIME ZONE 'UTC';
+ALTER TABLE slot ALTER COLUMN end_at TYPE TIMESTAMP WITH TIME ZONE USING end_at AT TIME ZONE 'UTC';
+-- repeat for every affected column
+```
+
+### 7. Twig Templates — No Changes Required
+
+`DateTimeImmutable` objects rendered via `|date('...')` in Twig will display the UTC value. No template changes are needed unless a specific local timezone display is required (it is not, per this requirement).
+
+### 8. PHPStan Compliance
+
+After all changes, run:
+
+```bash
+composer phpstan
+composer cs-check
+```
+
+Fix any type errors. All new classes (`NormalizeToUtc`, `NormalizeToUtcValidator`) must be fully typed and pass PHPStan level 10.
+
+***
+
+## Rules
+
+- Do **not** change any PHP property types — `DateTimeImmutable` stays as-is.
+- Do **not** switch to `DateTime` (mutable) anywhere.
+- Do **not** touch any entity, DTO, or service not listed above.
+- Do **not** change timezone for display purposes — UTC is the storage and API contract only.
+- A single Doctrine migration covers **all** column changes; do not generate one migration per entity.
+- Follow PSR-12. Constructor injection only. PHP 8 attributes only.
+
+***
+
+## Update Docs
+
+After completing the task, append to `docs/implementation-status.md` under a new section **Timezone**:
+
+- All `datetimetz_immutable` columns store `TIMESTAMP WITH TIME ZONE` in PostgreSQL 16
+- All date values are stored and queried in UTC
+- DTOs normalise incoming values to UTC before persistence
+- Single migration applied to convert all affected columns from `timestamp` to `timestamptz`
+
+Mark **Prompt TZ1** as complete.
+
+---
+
 ## End of Archive
 
-24 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
+25 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
 

@@ -30,7 +30,7 @@ class InvitationService
         $invitation->setToken(Uuid::v4()->toRfc4122());
         $invitation->setRole($role);
         $invitation->setInvitedBy($invitedBy);
-        $invitation->setExpiresAt(new \DateTimeImmutable('+7 days'));
+        $invitation->setExpiresAt(new \DateTimeImmutable('+7 days', new \DateTimeZone('UTC')));
 
         $this->entityManager->persist($invitation);
         $this->entityManager->flush();
@@ -69,7 +69,7 @@ class InvitationService
         $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
         $user->setPassword($hashedPassword);
 
-        $invitation->setAcceptedAt(new \DateTimeImmutable());
+        $invitation->setAcceptedAt(new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();

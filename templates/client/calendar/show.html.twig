@@ -181,6 +181,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         new FullCalendar.Calendar(document.getElementById('calendar-holder'), {
+            timeZone: 'UTC',
             initialView: 'dayGridMonth',
             height: 'auto',
             headerToolbar: {

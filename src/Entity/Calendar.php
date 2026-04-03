@@ -45,7 +45,7 @@ class Calendar
     #[ORM\OneToMany(targetEntity: Slot::class, mappedBy: 'calendar', fetch: 'EXTRA_LAZY')]
     private Collection $slots;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $createdAt;
 
     public function __construct()
@@ -56,7 +56,7 @@ class Calendar
     #[ORM\PrePersist]
     public function onPrePersist(): void
     {
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $this->publicToken = Uuid::v4()->toRfc4122();
     }
 
