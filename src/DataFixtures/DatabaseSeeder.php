@@ -154,7 +154,8 @@ class DatabaseSeeder
         string $type,
         \DateTimeImmutable $startAt,
         \DateTimeImmutable $endAt,
-    ): void {
+    ): void
+    {
         $slot = new Slot();
         $slot->setType($type);
         $slot->setStartAt($startAt);
