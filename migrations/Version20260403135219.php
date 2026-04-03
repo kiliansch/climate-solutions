@@ -27,8 +27,9 @@ final class Version20260403135219 extends AbstractMigration
         $this->addSql('ALTER TABLE invitations ALTER accepted_at TYPE TIMESTAMP(0) WITH TIME ZONE USING accepted_at AT TIME ZONE \'UTC\'');
         $this->addSql('ALTER TABLE notifications ALTER read_at TYPE TIMESTAMP(0) WITH TIME ZONE USING read_at AT TIME ZONE \'UTC\'');
         $this->addSql('ALTER TABLE notifications ALTER created_at TYPE TIMESTAMP(0) WITH TIME ZONE USING created_at AT TIME ZONE \'UTC\'');
-        $this->addSql('DROP INDEX idx_slot_unavailability_slot_date');
+        $this->addSql('DROP INDEX uniq_slot_unavailability_slot_date');
         $this->addSql('ALTER TABLE slot_unavailabilities ALTER blocked_date TYPE TIMESTAMP(0) WITH TIME ZONE USING blocked_date AT TIME ZONE \'UTC\'');
+        $this->addSql('CREATE UNIQUE INDEX uniq_slot_unavailability_slot_date ON slot_unavailabilities (slot_id, blocked_date)');
         $this->addSql('ALTER TABLE slots ALTER start_at TYPE TIMESTAMP(0) WITH TIME ZONE USING start_at AT TIME ZONE \'UTC\'');
         $this->addSql('ALTER TABLE slots ALTER end_at TYPE TIMESTAMP(0) WITH TIME ZONE USING end_at AT TIME ZONE \'UTC\'');
         $this->addSql('ALTER TABLE slots ALTER created_at TYPE TIMESTAMP(0) WITH TIME ZONE USING created_at AT TIME ZONE \'UTC\'');
@@ -47,6 +48,7 @@ final class Version20260403135219 extends AbstractMigration
         $this->addSql('ALTER TABLE invitations ALTER accepted_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE USING accepted_at AT TIME ZONE \'UTC\'');
         $this->addSql('ALTER TABLE notifications ALTER read_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE USING read_at AT TIME ZONE \'UTC\'');
         $this->addSql('ALTER TABLE notifications ALTER created_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE USING created_at AT TIME ZONE \'UTC\'');
+        $this->addSql('DROP INDEX uniq_slot_unavailability_slot_date');
         $this->addSql('ALTER TABLE slot_unavailabilities ALTER blocked_date TYPE TIMESTAMP(0) WITHOUT TIME ZONE USING blocked_date AT TIME ZONE \'UTC\'');
         $this->addSql('CREATE UNIQUE INDEX uniq_slot_unavailability_slot_date ON slot_unavailabilities (slot_id, blocked_date)');
         $this->addSql('ALTER TABLE slots ALTER start_at TYPE TIMESTAMP(0) WITHOUT TIME ZONE USING start_at AT TIME ZONE \'UTC\'');
