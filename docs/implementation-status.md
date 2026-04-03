@@ -204,4 +204,4 @@
 
 ## Bug Fixes / Feature Gaps — Continent Restriction ✅
 
-- Continent selection restricted to Europe only: `SlotDTO` validates continent with `Assert\Choice(choices: ['Europe'])` (allows null); agent slot-creation form replaced the multi-option select with `<input type="hidden" name="continent" value="Europe">`; public calendar JS always appends the continent label using `props.continent || 'Europe'` so existing slots without a continent set display "Europe". No migration required — `Slot.continent` remains a nullable string column.
+- Continent selection restricted to Europe only: the `createSlot` controller action in `App\Controller\Agent\CalendarController` ignores any `continent` value from the POST request and always persists `'Europe'`; agent slot-creation form no longer has a continent input (just a static label); public calendar JS appends the continent label only when `props.continent` is a non-empty string — no default fallback to "Europe" in JS. No migration required — `Slot.continent` remains a nullable string column.
