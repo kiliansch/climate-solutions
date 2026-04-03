@@ -203,7 +203,7 @@
                         infoText = props.date + ' · ' + props.timeRange;
                     }
                     if (props.location) infoText += ' · 📍 ' + props.location;
-                    if (props.continent) infoText += ' · ' + props.continent;
+                    infoText += ' · ' + (props.continent || 'Europe');
                     document.getElementById('booking-slot-info').textContent = infoText;
 
                     document.getElementById('booking-overlay').classList.add('is-open');
