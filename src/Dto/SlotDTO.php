@@ -22,7 +22,7 @@ final class SlotDTO
         public readonly \DateTimeImmutable $endAt = new \DateTimeImmutable(),
         #[Assert\Length(max: 255)]
         public readonly ?string $location = null,
-        #[Assert\Length(max: 255)]
+        #[Assert\Choice(choices: ['Europe'])]
         public readonly ?string $continent = null,
     ) {
     }

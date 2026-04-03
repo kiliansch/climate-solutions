@@ -201,3 +201,7 @@
 
 - **DatabaseSeeder** `src/DataFixtures/DatabaseSeeder.php` — seeds 1 admin, 2 agents, 2 clients, 2 calendars, 6 slots; idempotent (checks existing users by email, existing calendars by agent+client, existing slots by COUNT query); UTC-aware dates via `new \DateTimeImmutable('now', new \DateTimeZone('UTC'))`; plain Symfony service (not a Doctrine Fixture) tagged `#[AsTaggedItem('app.seeder')]`; single flush at the end
 - **app:db:fresh** `src/Command/DatabaseFreshCommand.php` — drops DB (`doctrine:database:drop --force --if-exists`), recreates (`doctrine:database:create`), runs all migrations (`doctrine:migrations:migrate`), calls `DatabaseSeeder::seed()`; aborts with `Command::FAILURE` and a clear error message if any sub-command returns non-zero; interactive confirmation prompt skipped when `--no-interaction` is passed
+
+## Bug Fixes / Feature Gaps — Continent Restriction ✅
+
+- Continent selection restricted to Europe only: the `createSlot` controller action in `App\Controller\Agent\CalendarController` ignores any `continent` value from the POST request and always persists `'Europe'`; agent slot-creation form no longer has a continent input (just a static label); public calendar JS appends the continent label only when `props.continent` is a non-empty string — no default fallback to "Europe" in JS. No migration required — `Slot.continent` remains a nullable string column.

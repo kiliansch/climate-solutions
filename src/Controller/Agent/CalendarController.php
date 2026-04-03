@@ -111,8 +111,7 @@ class CalendarController extends AbstractController
         $endAtRaw = (string) $request->request->get('endAt', '');
         $locationRaw = $request->request->get('location');
         $location = (is_string($locationRaw) && $locationRaw !== '') ? $locationRaw : null;
-        $continentRaw = $request->request->get('continent');
-        $continent = (is_string($continentRaw) && $continentRaw !== '') ? $continentRaw : null;
+        $continent = 'Europe';
 
         try {
             $startAt = (new \DateTimeImmutable($startAtRaw))->setTimezone(new \DateTimeZone('UTC'));

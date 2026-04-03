@@ -1349,7 +1349,58 @@ Append to docs/implementation-status.md under a new section "Developer Tooling":
 
 ---
 
+# Restrict Continent to Europe Only + Calendar Fallback Label
+
+CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting. Do not re-create anything already listed as completed.
+
+TASK
+Restrict the continent selection throughout the system to Europe only, and update the calendar display so that when no continent is specified on a slot, the continent label shown in the calendar reads "Europe" instead of the current fallback (e.g. "available").
+
+---
+
+1. Continent options — restrict to Europe only
+
+In src/Dto/SlotDTO.php (or wherever the continent field is validated):
+- Add an Assert\Choice constraint that only allows "Europe".
+- Remove all other continent values from the allowed list.
+
+In templates/agent/calendar/show.html.twig:
+- In the add-slot form, change the continent select to have only one option:
+  <option value="Europe">Europe</option>
+- The field may remain a <select> or be converted to:
+  <input type="hidden" name="continent" value="Europe">
+  — whichever is cleaner.
+
+---
+
+2. Continent label in public calendar — fallback to "Europe"
+
+In templates/public/calendar/show.html.twig:
+- Locate all places where the continent badge or label is rendered for a slot,
+  including the expanded virtual per-day entries (from BF1.2).
+- Replace any null-check fallback text ("available", "N/A", empty, or similar) with "Europe".
+- The Twig expression should be: {{ slot.continent ?? 'Europe' }} (or equivalent).
+- The badge must always display a continent value. Since Europe is the only option,
+  the label will always read "Europe".
+
+---
+
+3. No migration required
+
+The Slot.continent column is nullable string — do not change the schema.
+Existing slots without a continent set will display "Europe" via the Twig fallback.
+No Doctrine migration is needed.
+
+---
+
+UPDATE DOCS
+Append to docs/implementation-status.md under Bug Fixes / Feature Gaps:
+- Continent selection restricted to Europe only: SlotDTO allows only "Europe",
+  agent slot-creation form shows a single fixed option, public calendar displays
+  "Europe" as fallback when slot.continent is null.
+
+Mark this prompt as complete.
+
+---
 ## End of Archive
-
-27 prompts total. To use: copy the prompt block into VS Code with Copilot Agent active.
-
