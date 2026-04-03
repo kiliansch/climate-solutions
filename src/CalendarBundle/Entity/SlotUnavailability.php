@@ -33,7 +33,7 @@ class SlotUnavailability
     #[ORM\JoinColumn(nullable: false)]
     private Unavailability $unavailability;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $blockedDate;
 
     public function getId(): ?int

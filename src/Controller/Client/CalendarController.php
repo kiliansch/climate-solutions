@@ -64,6 +64,7 @@ class CalendarController extends AbstractController
                 ->getArrayResult();
 
             foreach ($results as $row) {
+                /** @var array{unavailabilityId: int|string, blockedDate: \DateTimeImmutable} $row */
                 $blockedDatesByUnavailability[(int) $row['unavailabilityId']][] = $row['blockedDate'];
             }
         }
@@ -88,8 +89,8 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('No calendar found for this client.');
         }
 
-        $startAt = $dto->startAt;
-        $endAt = $dto->endAt;
+        $startAt = $dto->startAt->setTimezone(new \DateTimeZone('UTC'));
+        $endAt = $dto->endAt->setTimezone(new \DateTimeZone('UTC'));
 
         if ($startAt->format('Y-m-d') === $endAt->format('Y-m-d')) {
             $endAt = $endAt->setTime(23, 59, 59);

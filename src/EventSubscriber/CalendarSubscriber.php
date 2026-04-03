@@ -47,8 +47,8 @@ class CalendarSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $startImmutable = \DateTimeImmutable::createFromMutable($start);
-        $endImmutable = \DateTimeImmutable::createFromMutable($end);
+        $startImmutable = \DateTimeImmutable::createFromMutable($start)->setTimezone(new \DateTimeZone('UTC'));
+        $endImmutable = \DateTimeImmutable::createFromMutable($end)->setTimezone(new \DateTimeZone('UTC'));
 
         $slots = $this->slotRepository->findByCalendarAndDateRange($calendar, $startImmutable, $endImmutable);
 
@@ -64,10 +64,13 @@ class CalendarSubscriber implements EventSubscriberInterface
         foreach ($slots as $slot) {
             if ($slot->getStatus() !== 'open') {
                 if ($viewType === 'client' && $slot->getStatus() === 'overridden') {
+                    $slotEnd = $slot->getType() === 'day'
+                        ? null
+                        : \DateTime::createFromImmutable($slot->getEndAt());
                     $event = new Event(
                         'Overridden',
                         \DateTime::createFromImmutable($slot->getStartAt()),
-                        \DateTime::createFromImmutable($slot->getEndAt()),
+                        $slotEnd,
                         null,
                         [
                             'color' => '#9ca3af',
@@ -90,11 +93,10 @@ class CalendarSubscriber implements EventSubscriberInterface
                     $blocked = isset($blockedDateMap[$slot->getId()][$dayDate->format('Y-m-d')]);
 
                     $dayStart = \DateTime::createFromImmutable($current->setTime(0, 0, 0));
-                    $dayEnd = \DateTime::createFromImmutable($current->setTime(23, 59, 59));
 
                     if ($blocked) {
                         if ($viewType === 'client') {
-                            $event = new Event('Blocked', $dayStart, $dayEnd, null, [
+                            $event = new Event('Blocked', $dayStart, null, null, [
                                 'color' => '#fbbf24',
                                 'textColor' => '#92400e',
                                 'extendedProps' => [
@@ -107,7 +109,7 @@ class CalendarSubscriber implements EventSubscriberInterface
                         }
                     } else {
                         $title = $slot->getLocation() !== null ? ('📍 ' . $slot->getLocation()) : 'Available';
-                        $event = new Event($title, $dayStart, $dayEnd, null, [
+                        $event = new Event($title, $dayStart, null, null, [
                             'color' => '#2d6a4f',
                             'extendedProps' => [
                                 'status' => 'open',

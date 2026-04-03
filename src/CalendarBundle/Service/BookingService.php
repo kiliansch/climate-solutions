@@ -36,7 +36,9 @@ class BookingService
         }
 
         if ($slot->getType() === 'day' && $dto->selectedDate !== null) {
-            if ($this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $dto->selectedDate)) {
+            $selectedDate = $dto->selectedDate->setTimezone(new \DateTimeZone('UTC'));
+
+            if ($this->slotUnavailabilityRepository->isDateBlockedForSlot($slot, $selectedDate)) {
                 throw new \DomainException('This date is not available for booking.');
             }
         }
@@ -49,7 +51,7 @@ class BookingService
         $request->setStatus('pending');
 
         if ($slot->getType() === 'day' && $dto->selectedDate !== null) {
-            $request->setSelectedDate($dto->selectedDate);
+            $request->setSelectedDate($dto->selectedDate->setTimezone(new \DateTimeZone('UTC')));
         }
 
         $this->entityManager->persist($request);

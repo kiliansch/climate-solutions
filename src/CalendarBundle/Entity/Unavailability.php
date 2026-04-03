@@ -18,10 +18,10 @@ class Unavailability
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $startAt;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $endAt;
 
     #[ORM\Column(length: 255, nullable: true)]

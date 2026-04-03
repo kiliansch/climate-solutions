@@ -30,10 +30,10 @@ class Invitation
     #[ORM\JoinColumn(nullable: false)]
     private User $invitedBy;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $expiresAt;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(type: 'datetimetz_immutable', nullable: true)]
     private ?\DateTimeImmutable $acceptedAt = null;
 
     public function getId(): ?int
@@ -115,7 +115,7 @@ class Invitation
 
     public function isExpired(): bool
     {
-        return $this->expiresAt < new \DateTimeImmutable();
+        return $this->expiresAt < new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
 
     public function isAccepted(): bool

@@ -25,10 +25,10 @@ class Slot
     )]
     private string $type;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $startAt;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $endAt;
 
     #[ORM\Column(
@@ -48,13 +48,13 @@ class Slot
     #[ORM\JoinColumn(nullable: false)]
     private Calendar $calendar;
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $createdAt;
 
     #[ORM\PrePersist]
     public function onPrePersist(): void
     {
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
 
     public function getId(): ?int

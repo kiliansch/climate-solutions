@@ -115,8 +115,8 @@ class CalendarController extends AbstractController
         $continent = (is_string($continentRaw) && $continentRaw !== '') ? $continentRaw : null;
 
         try {
-            $startAt = new \DateTimeImmutable($startAtRaw);
-            $endAt = new \DateTimeImmutable($endAtRaw);
+            $startAt = (new \DateTimeImmutable($startAtRaw))->setTimezone(new \DateTimeZone('UTC'));
+            $endAt = (new \DateTimeImmutable($endAtRaw))->setTimezone(new \DateTimeZone('UTC'));
         } catch (\Exception) {
             $this->addFlash('error', 'Invalid date/time format.');
 
@@ -197,7 +197,8 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('Calendar not found.');
         }
 
-        if (!$this->isCsrfTokenValid('agent_calendar_slot_delete_' . $id . '_' . $slotId, (string) $request->request->get('_token'))) {
+        $csrfToken = 'agent_calendar_slot_delete_' . $id . '_' . $slotId;
+        if (!$this->isCsrfTokenValid($csrfToken, (string) $request->request->get('_token'))) {
             $this->addFlash('error', 'Invalid CSRF token.');
 
             return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);

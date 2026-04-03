@@ -69,8 +69,8 @@ class SlotUnavailabilityRepository extends ServiceEntityRepository
 
         $map = [];
         foreach ($rows as $row) {
+            /** @var array{slotId: int|string, blockedDate: \DateTimeImmutable} $row */
             $slotId = (int) $row['slotId'];
-            /** @var \DateTimeImmutable $blockedDate */
             $blockedDate = $row['blockedDate'];
             $map[$slotId][$blockedDate->format('Y-m-d')] = true;
         }
