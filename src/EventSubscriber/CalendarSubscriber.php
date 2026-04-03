@@ -128,29 +128,28 @@ class CalendarSubscriber implements EventSubscriberInterface
                 // Split time-type slots at day boundaries so each segment renders as a
                 // timed block in dayGridMonth rather than as a spanning all-day bar.
                 $title = $slot->getLocation() !== null ? ('📍 ' . $slot->getLocation()) : 'Available';
-                $sharedExtendedProps = [
-                    'status' => 'open',
-                    'slotId' => $slot->getId(),
-                    'type' => 'time',
-                    'date' => $slot->getStartAt()->format('Y-m-d'),
-                    'location' => $slot->getLocation(),
-                    'continent' => $slot->getContinent(),
-                    'timeRange' => $slot->getStartAt()->format('H:i') . ' – ' . $slot->getEndAt()->format('H:i'),
-                ];
                 $segmentStart = $slot->getStartAt();
                 $slotEnd = $slot->getEndAt();
                 while ($segmentStart < $slotEnd) {
-                    $dayEnd = $segmentStart->setTime(23, 59, 59);
-                    $segmentEnd = $dayEnd < $slotEnd ? $dayEnd : $slotEnd;
+                    $nextMidnight = $segmentStart->setTime(0, 0, 0)->modify('+1 day');
+                    $segmentEnd = $nextMidnight < $slotEnd ? $nextMidnight : $slotEnd;
                     $event = new Event(
                         $title,
                         \DateTime::createFromImmutable($segmentStart),
                         \DateTime::createFromImmutable($segmentEnd),
                         null,
-                        ['color' => '#2d6a4f', 'allDay' => false, 'extendedProps' => $sharedExtendedProps],
+                        ['color' => '#2d6a4f', 'allDay' => false, 'extendedProps' => [
+                            'status' => 'open',
+                            'slotId' => $slot->getId(),
+                            'type' => 'time',
+                            'date' => $segmentStart->format('Y-m-d'),
+                            'location' => $slot->getLocation(),
+                            'continent' => $slot->getContinent(),
+                            'timeRange' => $segmentStart->format('H:i') . ' – ' . $segmentEnd->format('H:i'),
+                        ]],
                     );
                     $setDataEvent->addEvent($event);
-                    $segmentStart = $segmentStart->setTime(0, 0, 0)->modify('+1 day');
+                    $segmentStart = $nextMidnight;
                 }
             } else {
                 // day-type single-day slot
