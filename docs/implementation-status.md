@@ -205,3 +205,7 @@
 ## Bug Fixes / Feature Gaps — Continent Restriction ✅
 
 - Continent selection restricted to Europe only: the `createSlot` controller action in `App\Controller\Agent\CalendarController` ignores any `continent` value from the POST request and always persists `'Europe'`; agent slot-creation form no longer has a continent input (just a static label); public calendar JS appends the continent label only when `props.continent` is a non-empty string — no default fallback to "Europe" in JS. No migration required — `Slot.continent` remains a nullable string column.
+
+## Bug Fixes / Feature Gaps — Time Slot Rendering ✅
+
+- **Time-type slots render as timed blocks in the shared FullCalendar view.** `CalendarSubscriber` passes real `startAt`/`endAt` `DateTime` values for time-type slots and explicitly includes `'allDay' => false` in the event options array; FullCalendar infers `allDay=false` from the non-midnight times and renders the event spanning the correct time range. Day-type slots remain all-day bars (`'allDay'` not set, end passed as `null`). `timeGridWeek`/`timeGridDay` views were added to the FullCalendar toolbar in `templates/public/calendar/show.html.twig`, so timed views are available even though the template still uses its existing default `initialView`. Note: any time-type slot accidentally stored with midnight `startAt`/`endAt` (prior to the BF1.1 guard being time-type-aware) would still render as an all-day event in older browsers without the explicit `allDay: false` flag; the explicit flag covers this edge case.

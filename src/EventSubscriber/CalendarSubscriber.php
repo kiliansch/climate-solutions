@@ -124,26 +124,51 @@ class CalendarSubscriber implements EventSubscriberInterface
                     }
                     $current = $current->modify('+1 day');
                 }
+            } elseif ($slot->getType() === 'time') {
+                // Split time-type slots at day boundaries so each segment renders as a
+                // timed block in dayGridMonth rather than as a spanning all-day bar.
+                $title = $slot->getLocation() !== null ? ('📍 ' . $slot->getLocation()) : 'Available';
+                $segmentStart = $slot->getStartAt();
+                $slotEnd = $slot->getEndAt();
+                while ($segmentStart < $slotEnd) {
+                    $nextMidnight = $segmentStart->setTime(0, 0, 0)->modify('+1 day');
+                    $segmentEnd = $nextMidnight < $slotEnd ? $nextMidnight : $slotEnd;
+                    $event = new Event(
+                        $title,
+                        \DateTime::createFromImmutable($segmentStart),
+                        \DateTime::createFromImmutable($segmentEnd),
+                        null,
+                        ['color' => '#2d6a4f', 'allDay' => false, 'extendedProps' => [
+                            'status' => 'open',
+                            'slotId' => $slot->getId(),
+                            'type' => 'time',
+                            'date' => $segmentStart->format('Y-m-d'),
+                            'location' => $slot->getLocation(),
+                            'continent' => $slot->getContinent(),
+                            'timeRange' => $segmentStart->format('H:i') . ' – ' . $segmentEnd->format('H:i'),
+                        ]],
+                    );
+                    $setDataEvent->addEvent($event);
+                    $segmentStart = $nextMidnight;
+                }
             } else {
-                $allDay = $slot->getType() === 'day';
+                // day-type single-day slot
                 $title = $slot->getLocation() !== null ? ('📍 ' . $slot->getLocation()) : 'Available';
                 $event = new Event(
                     $title,
                     \DateTime::createFromImmutable($slot->getStartAt()),
-                    $allDay ? null : \DateTime::createFromImmutable($slot->getEndAt()),
+                    null,
                     null,
                     [
                         'color' => '#2d6a4f',
                         'extendedProps' => [
                             'status' => 'open',
                             'slotId' => $slot->getId(),
-                            'type' => $slot->getType(),
+                            'type' => 'day',
                             'date' => $slot->getStartAt()->format('Y-m-d'),
                             'location' => $slot->getLocation(),
                             'continent' => $slot->getContinent(),
-                            'timeRange' => $slot->getType() === 'time'
-                                ? ($slot->getStartAt()->format('H:i') . ' – ' . $slot->getEndAt()->format('H:i'))
-                                : null,
+                            'timeRange' => null,
                         ],
                     ],
                 );
