@@ -1509,4 +1509,144 @@ Append to docs/implementation-status.md under Bug Fixes / Feature Gaps:
 Mark this prompt as complete.
 
 ---
+
+# Client invitation
+
+CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+
+Depends on: InvitationService (Phase 1 Prompt 1.2), AgentCalendarController (Phase 2 Prompt 2.3), all Phase 6 templates.
+
+---
+
+PROBLEM STATEMENT
+
+Two bugs exist in the current implementation:
+
+1. Agents have no working route or controller action to invite clients. The template
+   `templates/agent/invite_client.html.twig` exists but posts to a route `agent_invite_client`
+   that is never registered — no controller action handles it. The flow is completely broken.
+
+2. `templates/agent/calendar/show.html.twig` contains an "Invite Client" link pointing to
+   `agent_invite_client` with a `calendarId` parameter. This is architecturally incorrect:
+   `Calendar.client` is `NOT NULL` and is assigned at calendar creation time. There is no
+   mechanism to re-assign or invite a client into an already-created calendar. Inviting a client
+   from the calendar show page is therefore meaningless and misleading.
+
+---
+
+CORRECT DESIGN
+
+The invitation flow must be a prerequisite to calendar creation, not a follow-up:
+
+  Step 1 — Agent invites a new client by email (standalone, no calendar context).
+             The client receives the standard invitation email and sets their password.
+  Step 2 — Once the client account exists, the agent creates a calendar and selects
+             that client from the `clientId` dropdown (already implemented in CalendarDTO
+             and `templates/agent/calendar/index.html.twig`).
+
+The `clientId` dropdown in the calendar creation form must only list clients that were
+invited by the currently authenticated agent (`User.invitedBy = $agent`). This scoping
+already aligns with `CalendarRepository::findByAgent` which scopes calendars per agent.
+
+---
+
+TASK
+
+Make the minimal changes required. Only touch what is listed below.
+
+--- 1. Create src/Controller/Agent/AgentInvitationController.php ---
+
+- Class-level: #[IsGranted('ROLE_AGENT')], #[Route('/agent')]
+- GET  /agent/invite-client  →  name: agent_invite_client
+  - Render `templates/agent/invite_client.html.twig` with no variables needed
+- POST /agent/invite-client  →  name: agent_invite_client (same route, different method)
+  - Use InviteUserDTO (already exists in src/Dto/InviteUserDTO.php) via #[MapRequestPayload]
+  - Call InvitationService::createInvitation($dto->email, 'ROLE_CLIENT', $this->getUser())
+  - On success: $this->addFlash('success', 'Client invitation sent.'); redirectToRoute('agent_calendar_list')
+  - On DomainException (e.g. duplicate email): $this->addFlash('error', $e->getMessage()); re-render the form
+  - No business logic in the controller. Constructor-inject InvitationService only.
+  - Follow PSR-12, strict_types=1, PHP 8 attributes only.
+
+--- 2. Update templates/agent/invite_client.html.twig ---
+
+Replace the entire file content with a clean implementation that:
+- Extends base.html.twig
+- Has a back-link to agent_calendar_list (not to any calendar show page)
+- Posts to agent_invite_client (POST) — no calendarId hidden field, no calendarId anywhere
+- Has a single email input with label
+- Has a hidden input: name="role" value="ROLE_CLIENT"  ← required by InviteUserDTO
+- Submit button: "Send Invitation"
+- Displays flash messages (success and error) from the base layout flash block
+
+--- 3. Update templates/agent/calendar/show.html.twig ---
+
+Remove the "Invite Client" link/button entirely from this template.
+A calendar already has exactly one client assigned at creation. There is no invite action
+relevant to a calendar that already exists. Do not replace it with anything.
+
+--- 4. Update templates/agent/calendar/index.html.twig ---
+
+Add an "Invite New Client" secondary button/link near the calendar creation form heading.
+It links to agent_invite_client. Style it as a secondary/ghost action, clearly subordinate
+to the "Create Calendar" primary action. Label: "Invite New Client".
+
+--- 5. Update AgentCalendarController::index() (GET /agent/calendars) ---
+
+The template already receives a `clients` variable for the clientId dropdown.
+Ensure this query is scoped: only return users with ROLE_CLIENT whose `invitedBy`
+equals the currently authenticated agent.
+
+If UserRepository does not yet have a method for this, add:
+  findClientsByAgentUser(User $agent): array
+  — queries users WHERE JSON roles contains 'ROLE_CLIENT' AND invitedBy = $agent
+  — ordered by name ASC
+
+Inject UserRepository into AgentCalendarController (if not already injected) via constructor.
+Pass `clients` to the index template using this scoped query.
+
+Do NOT change CalendarDTO, CalendarRepository, InvitationService, InviteUserDTO,
+the invitation email handler, or any other file not listed above.
+
+---
+
+VERIFICATION CHECKLIST (do not mark complete until all pass)
+
+[ ] GET /agent/invite-client renders the form (no 500, no "route not found")
+[ ] POST /agent/invite-client with a valid email creates an Invitation record, dispatches
+    InvitationCreatedMessage, flashes success, and redirects to agent_calendar_list
+[ ] POST /agent/invite-client with a duplicate/already-invited email flashes an error and
+    re-renders the form — does NOT crash
+[ ] The invited client can accept their invitation email, set their password, and log in
+    as ROLE_CLIENT (existing InvitationService behaviour — no change needed, just verify)
+[ ] The clientId dropdown on the calendar creation form lists only clients invited by
+    the current agent — not clients of other agents
+[ ] templates/agent/calendar/show.html.twig contains no reference to agent_invite_client
+[ ] No other template or controller references a calendarId parameter on agent_invite_client
+[ ] PHPStan level 10 passes on all touched files: composer phpstan
+[ ] PHPCS PSR-12 passes on all touched files: composer cs-check
+
+---
+
+UPDATE DOCS
+Append to docs/implementation-status.md:
+
+Under Controllers / Routes:
+- GET/POST /agent/invite-client  →  AgentInvitationController  (agent_invite_client)
+  Agents can invite clients; calls InvitationService::createInvitation with ROLE_CLIENT;
+  redirects to agent_calendar_list on success.
+
+Under Services:
+- UserRepository::findClientsByAgentUser(User $agent): array
+  Returns ROLE_CLIENT users whose invitedBy = $agent, ordered by name ASC.
+
+Under Templates:
+- templates/agent/invite_client.html.twig  updated: no calendarId, back-link to calendar list
+- templates/agent/calendar/show.html.twig  updated: Invite Client link removed
+- templates/agent/calendar/index.html.twig updated: Invite New Client secondary link added
+
+Mark this prompt as complete only after the verification checklist above is fully green.
+
+---
 ## End of Archive

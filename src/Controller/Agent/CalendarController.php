@@ -38,7 +38,7 @@ class CalendarController extends AbstractController
         $agent = $this->getUser();
 
         $calendars = $this->calendarRepository->findByAgent($agent);
-        $clients = $this->userRepository->findByRole('ROLE_CLIENT');
+        $clients = $this->userRepository->findClientsByAgentUser($agent);
 
         return $this->render('agent/calendar/index.html.twig', [
             'calendars' => $calendars,
