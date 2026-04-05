@@ -92,6 +92,15 @@
   - POST `/admin/invite` (`admin_invite`) → validates `InviteUserDTO` (NotBlank + valid Email on `email`) via `#[MapRequestPayload]`; calls `InvitationService::createInvitation()` with `role = 'ROLE_AGENT'`; flash success, redirect to `admin_agent_list`
 - **UserRepository::findByRole(string $role): User[]** — queries users whose JSON roles column contains the given role
 
+### Bug Fix / Prompt BF4 ✅ — Invitation flow & client scoping
+- **GET/POST /agent/invite-client** → `Agent\AgentInvitationController` (`agent_invite_client` / `agent_invite_client_post`)
+  Agents invite clients standalone (no calendar context); calls `InvitationService::createInvitation($dto->email, 'ROLE_CLIENT', $agent)`; flashes success and redirects to `agent_calendar_list` on success; catches `\DomainException` and re-renders with error flash.
+- **UserRepository::findClientsByAgentUser(User $agent): array** — returns ROLE_CLIENT users whose `invitedBy = $agent`, ordered by name ASC (native SQL, mirrors `findByRole` pattern).
+- **Agent\CalendarController::list()** updated: `clients` variable now scoped to `findClientsByAgentUser($agent)` instead of `findByRole('ROLE_CLIENT')` — only clients the current agent invited appear in the dropdown.
+- **templates/agent/invite_client.html.twig** updated: no `calendarId`, back-link always to `agent_calendar_list`, form posts to `agent_invite_client_post`, submit "Send Invitation".
+- **templates/agent/calendar/show.html.twig** updated: "Invite Client" sidebar link removed — a calendar already has exactly one client assigned at creation.
+- **templates/agent/calendar/index.html.twig** updated: "Invite New Client" secondary ghost link added next to the "New Calendar" section heading, linking to `agent_invite_client`.
+
 ### Phase 6 / Prompt 6.4 ✅
 - **Client\CalendarController** protected by `#[IsGranted('ROLE_CLIENT')]`:
   - GET `/client/calendar` (`client_calendar_show`) → `CalendarRepository::findByClient()`, 404 if not found; loads unavailability records via `UnavailabilityRepository::findByCalendar()`; renders `templates/client/calendar/show.html.twig` with `calendar` + `unavailabilities`

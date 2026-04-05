@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}My Calendar — {{ calendar.name }}{% endblock %}
+{% block title %}My Calendar{% if calendar %} — {{ calendar.name }}{% endif %} — Climate Solutions{% endblock %}
 
 {% block stylesheets %}
 <style>
@@ -96,6 +96,10 @@
 {% endblock %}
 
 {% block body %}
+{% if calendar is null %}
+<h1>My Calendar</h1>
+<p style="color:#555;font-size:.95rem;margin-top:.5rem">Your agent hasn't created a calendar for you yet. You'll receive an email once one is ready.</p>
+{% else %}
 <h1>{{ calendar.name }}</h1>
 
 {% if hasOverriddenSlots %}
@@ -174,9 +178,11 @@
         <button type="submit" class="btn btn-primary">Add Unavailability</button>
     </form>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block javascripts %}
+{% if calendar %}
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -210,4 +216,5 @@
         });
     });
 </script>
+{% endif %}
 {% endblock %}

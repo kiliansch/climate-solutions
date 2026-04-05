@@ -56,4 +56,25 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
 
         return $result;
     }
+
+    /**
+     * @return User[]
+     */
+    public function findClientsByAgentUser(User $agent): array
+    {
+        $rsm = new \Doctrine\ORM\Query\ResultSetMappingBuilder($this->getEntityManager());
+        $rsm->addRootEntityFromClassMetadata(User::class, 'u');
+
+        $sql = 'SELECT ' . $rsm->generateSelectClause(['u' => 'u'])
+            . ' FROM users u WHERE u.roles::text LIKE :role AND u.invited_by_id = :agentId ORDER BY u.name ASC';
+
+        /** @var User[] $result */
+        $result = $this->getEntityManager()
+            ->createNativeQuery($sql, $rsm)
+            ->setParameter('role', '%"ROLE_CLIENT"%')
+            ->setParameter('agentId', (int) $agent->getId())
+            ->getResult();
+
+        return $result;
+    }
 }

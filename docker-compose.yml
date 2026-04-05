@@ -18,6 +18,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     networks:
       - symfony
 
@@ -34,6 +36,15 @@ services:
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - php
+    networks:
+      - symfony
+
+  # ── Mailhog (local mail catcher) ──────────────────────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
     networks:
       - symfony
 

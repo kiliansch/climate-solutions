@@ -42,7 +42,12 @@ class CalendarController extends AbstractController
         $calendar = $this->calendarRepository->findByClient($client);
 
         if ($calendar === null) {
-            throw $this->createNotFoundException('No calendar found for this client.');
+            return $this->render('client/calendar/show.html.twig', [
+                'calendar' => null,
+                'unavailabilities' => [],
+                'hasOverriddenSlots' => false,
+                'blockedDatesByUnavailability' => [],
+            ]);
         }
 
         $unavailabilities = $this->unavailabilityRepository->findByCalendar($calendar);
