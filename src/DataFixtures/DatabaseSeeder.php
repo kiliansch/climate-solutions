@@ -44,47 +44,59 @@ class DatabaseSeeder
         $calendar1 = $this->findOrCreateCalendar("Alice's Calendar", 'dayslot', $agent1, $client1);
         $calendar2 = $this->findOrCreateCalendar("Bob's Calendar", 'timeslot', $agent2, $client2);
 
-        // e. Slots for calendar 1 (mix: 2 day + 1 time)
+        // e. Slots for calendar 1 (2 day + 1 overnight-time)
         if (!$this->hasSlots($calendar1)) {
+            // Multi-day block in Berlin
             $this->addSlot(
                 $calendar1,
                 'day',
                 $now->modify('+5 days')->setTime(0, 0, 0),
                 $now->modify('+6 days')->setTime(23, 59, 59),
+                'Berlin',
             );
+            // Daytime session in Paris
             $this->addSlot(
                 $calendar1,
                 'time',
                 $now->modify('+10 days')->setTime(9, 0, 0),
                 $now->modify('+10 days')->setTime(11, 0, 0),
+                'Paris',
             );
+            // Multi-day block in Amsterdam
             $this->addSlot(
                 $calendar1,
                 'day',
                 $now->modify('+20 days')->setTime(0, 0, 0),
                 $now->modify('+21 days')->setTime(23, 59, 59),
+                'Amsterdam',
             );
         }
 
-        // e. Slots for calendar 2 (mix: 1 day + 2 time)
+        // e. Slots for calendar 2 (1 day + 1 time + 1 overnight-time carry-over)
         if (!$this->hasSlots($calendar2)) {
+            // Afternoon session in London
             $this->addSlot(
                 $calendar2,
                 'time',
                 $now->modify('+7 days')->setTime(14, 0, 0),
                 $now->modify('+7 days')->setTime(16, 0, 0),
+                'London',
             );
+            // Multi-day block in Rome
             $this->addSlot(
                 $calendar2,
                 'day',
                 $now->modify('+15 days')->setTime(0, 0, 0),
                 $now->modify('+16 days')->setTime(23, 59, 59),
+                'Rome',
             );
+            // Overnight carry-over: starts late evening, ends early next morning
             $this->addSlot(
                 $calendar2,
                 'time',
-                $now->modify('+25 days')->setTime(10, 0, 0),
-                $now->modify('+25 days')->setTime(12, 0, 0),
+                $now->modify('+25 days')->setTime(23, 0, 0),
+                $now->modify('+26 days')->setTime(2, 0, 0),
+                'Madrid',
             );
         }
 
@@ -154,13 +166,15 @@ class DatabaseSeeder
         string $type,
         \DateTimeImmutable $startAt,
         \DateTimeImmutable $endAt,
-    ): void
-    {
+        string $location,
+    ): void {
         $slot = new Slot();
         $slot->setType($type);
         $slot->setStartAt($startAt);
         $slot->setEndAt($endAt);
         $slot->setStatus('open');
+        $slot->setLocation($location);
+        $slot->setContinent('Europe');
         $slot->setCalendar($calendar);
 
         $this->entityManager->persist($slot);
