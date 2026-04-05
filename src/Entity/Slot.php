@@ -44,6 +44,12 @@ class Slot
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $continent = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $allowChunkedBooking = false;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $chunkCooldownMinutes = null;
+
     #[ORM\ManyToOne(targetEntity: Calendar::class, inversedBy: 'slots')]
     #[ORM\JoinColumn(nullable: false)]
     private Calendar $calendar;
@@ -130,6 +136,30 @@ class Slot
     public function setContinent(?string $continent): static
     {
         $this->continent = $continent;
+
+        return $this;
+    }
+
+    public function isAllowChunkedBooking(): bool
+    {
+        return $this->allowChunkedBooking;
+    }
+
+    public function setAllowChunkedBooking(bool $allowChunkedBooking): static
+    {
+        $this->allowChunkedBooking = $allowChunkedBooking;
+
+        return $this;
+    }
+
+    public function getChunkCooldownMinutes(): ?int
+    {
+        return $this->chunkCooldownMinutes;
+    }
+
+    public function setChunkCooldownMinutes(?int $chunkCooldownMinutes): static
+    {
+        $this->chunkCooldownMinutes = $chunkCooldownMinutes;
 
         return $this;
     }

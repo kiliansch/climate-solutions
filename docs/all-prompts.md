@@ -1649,4 +1649,108 @@ Under Templates:
 Mark this prompt as complete only after the verification checklist above is fully green.
 
 ---
+
+# Multiple bookings per timeslot and cooldown period\
+
+CONTEXT
+Read docs/implementation-status.md before starting.
+Do not recreate anything already listed as completed.
+
+---
+
+WHAT WE ARE BUILDING
+Time-type slots can optionally be booked in consecutive chunks by multiple
+customers. When this is enabled on a slot, a cooldown buffer (travel time)
+must be configured to separate back-to-back bookings. This prompt covers
+data storage and the agent UI only. Booking logic is out of scope here.
+
+---
+
+CHANGES REQUIRED
+
+## 1. Slot entity — src/Entity/Slot.php
+
+Add two fields:
+
+  allowChunkedBooking: bool, NOT NULL, default false
+  chunkCooldownMinutes: ?int, nullable
+
+Business rule: chunkCooldownMinutes must be null when allowChunkedBooking
+is false, and must hold one of [30, 60, 90, 120, 150, 180] when true.
+This rule is enforced at the DTO layer, not the entity layer.
+
+Generate a single Doctrine migration.
+
+## 2. SlotDTO
+
+Add the same two fields with validation:
+
+  - allowChunkedBooking: bool, default false, no constraints needed
+  - chunkCooldownMinutes: ?int
+
+  Add a class-level constraint that fails when allowChunkedBooking is true
+  but chunkCooldownMinutes is not one of [30, 60, 90, 120, 150, 180], or
+  when allowChunkedBooking is false but chunkCooldownMinutes is not null.
+
+  The cleanest approach is two Assert\When constraints on the class, one
+  per direction of the rule. Do not use a custom constraint class.
+
+## 3. AgentCalendarController — POST agent/calendars/{id}/slots
+
+Map both new DTO fields onto the Slot entity before persisting. No other
+changes to this action.
+
+## 4. templates/agent/calendar/show.html.twig
+
+In the add-slot form, after the type field:
+
+  a) A checkbox "Allow chunked booking", only visible when type = time.
+     When unchecked, the field below must be hidden and its value cleared.
+
+  b) A select "Cooldown between bookings", only visible when the checkbox
+     is checked. Options: 30 min, 60 min, 90 min, 120 min, 150 min,
+     180 min (values: 30, 60, 90, 120, 150, 180). Required when visible.
+
+  Client-side: prevent form submission if the checkbox is checked but no
+  cooldown is selected. Show an inline error next to the select field.
+
+  In the slots table, add a column that shows "—" when chunked booking is
+  off, or the cooldown duration (e.g. "Chunked · 30 min") when it is on.
+
+---
+
+CONSTRAINTS
+- Only touch: Slot entity, SlotDTO, AgentCalendarController (POST action
+  only), templates/agent/calendar/show.html.twig.
+- No new services, message classes, or repositories.
+- Booking logic (BookingService, public template, SlotUnavailability) is
+  untouched — the new fields are stored only at this stage.
+- PSR-12, declare(strict_types=1), PHP 8 attributes, constructor injection.
+
+---
+
+DONE WHEN
+[ ] php bin/console doctrine:migrations:migrate applies cleanly
+[ ] Creating a time-type slot with checkbox unchecked stores
+    allowChunkedBooking=false, chunkCooldownMinutes=null
+[ ] Creating a time-type slot with checkbox checked and 30 min selected
+    stores allowChunkedBooking=true, chunkCooldownMinutes=30
+[ ] Submitting the form with checkbox checked but no cooldown selected is
+    blocked client-side with a visible inline error
+[ ] A direct POST with allowChunkedBooking=true and no cooldown fails
+    Symfony validation server-side (constraint fires)
+[ ] Day-type slot form shows no checkbox and no cooldown select
+[ ] The slots table displays the new column correctly for both states
+[ ] composer phpstan passes at level 10
+[ ] composer cs-check passes
+
+---
+
+UPDATE DOCS
+In docs/implementation-status.md under Entities → Slot, append:
+  allowChunkedBooking bool (default false), chunkCooldownMinutes nullable
+  int — valid values 30/60/90/120/150/180 min; cooldown required when
+  chunked booking is on; booking logic not yet wired (storage only).
+
+---
 ## End of Archive
