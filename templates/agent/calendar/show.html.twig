@@ -51,6 +51,9 @@
     .edit-form { background: #fff; border-radius: 6px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 1.5rem; }
     .edit-form .form-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: .85rem; align-items: end; }
     .edit-note { font-size: .8rem; color: #9ca3af; margin-top: .5rem; }
+    .checkbox-label { display: flex; align-items: center; gap: .4rem; font-size: .875rem; font-weight: 600; color: #374151; cursor: pointer; }
+    .checkbox-label input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
+    .field-error { display: none; color: #dc2626; font-size: .75rem; margin-top: .2rem; }
 </style>
 {% endblock %}
 
@@ -126,6 +129,7 @@
                     <th>Status</th>
                     <th>Location</th>
                     <th>Continent</th>
+                    <th>Chunked</th>
                     <th></th>
                 </tr>
             </thead>
@@ -138,6 +142,7 @@
                     <td><span class="badge badge-{{ slot.status }}">{{ slot.status }}</span></td>
                     <td>{{ slot.location ?? '—' }}</td>
                     <td>{{ slot.continent ?? '—' }}</td>
+                    <td>{% if slot.allowChunkedBooking %}Chunked · {{ slot.chunkCooldownMinutes }} min{% else %}—{% endif %}</td>
                     <td>
                         {% if slot.status != 'booked' %}
                         <form method="post" action="{{ path('agent_calendar_slot_delete', {id: calendar.id, slotId: slot.id}) }}" style="display:inline">
@@ -150,7 +155,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7">No slots yet. Add one below.</td>
+                    <td colspan="8">No slots yet. Add one below.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -171,6 +176,27 @@
                     <div class="form-field">
                         <label>Continent</label>
                         <p>Europe</p>
+                    </div>
+                </div>
+                <div class="form-row" id="chunked-row" style="display:none">
+                    <div class="form-field">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="allowChunkedBooking" name="allowChunkedBooking" value="1">
+                            Allow chunked booking
+                        </label>
+                    </div>
+                    <div class="form-field" id="cooldown-field" style="display:none">
+                        <label for="chunkCooldownMinutes">Cooldown between bookings</label>
+                        <select id="chunkCooldownMinutes" name="chunkCooldownMinutes">
+                            <option value="">— select —</option>
+                            <option value="30">30 min</option>
+                            <option value="60">60 min</option>
+                            <option value="90">90 min</option>
+                            <option value="120">120 min</option>
+                            <option value="150">150 min</option>
+                            <option value="180">180 min</option>
+                        </select>
+                        <span class="field-error" id="cooldown-error">Please select a cooldown duration.</span>
                     </div>
                 </div>
                 <div class="form-row" id="datetime-row">
@@ -242,6 +268,11 @@ function copyShareUrl(button, url) {
     var endAt = document.getElementById('endAt');
     var startLabel = document.getElementById('startAt-label');
     var endLabel = document.getElementById('endAt-label');
+    var chunkedRow = document.getElementById('chunked-row');
+    var allowChunkedCheckbox = document.getElementById('allowChunkedBooking');
+    var cooldownField = document.getElementById('cooldown-field');
+    var cooldownSelect = document.getElementById('chunkCooldownMinutes');
+    var cooldownError = document.getElementById('cooldown-error');
 
     function toggleDateInputs() {
         var isDay = typeSelect.value === 'day';
@@ -251,8 +282,43 @@ function copyShareUrl(button, url) {
         endLabel.textContent = isDay ? 'End Date' : 'End Date/Time';
     }
 
-    typeSelect.addEventListener('change', toggleDateInputs);
+    function toggleChunkedRow() {
+        var isTime = typeSelect.value === 'time';
+        chunkedRow.style.display = isTime ? '' : 'none';
+        if (!isTime) {
+            allowChunkedCheckbox.checked = false;
+            cooldownField.style.display = 'none';
+            cooldownSelect.value = '';
+            cooldownError.style.display = 'none';
+        }
+    }
+
+    function toggleCooldownField() {
+        var checked = allowChunkedCheckbox.checked;
+        cooldownField.style.display = checked ? '' : 'none';
+        if (!checked) {
+            cooldownSelect.value = '';
+            cooldownError.style.display = 'none';
+        }
+    }
+
+    typeSelect.addEventListener('change', function () {
+        toggleDateInputs();
+        toggleChunkedRow();
+    });
+
+    allowChunkedCheckbox.addEventListener('change', toggleCooldownField);
+
+    document.querySelector('.slot-form form').addEventListener('submit', function (e) {
+        if (allowChunkedCheckbox.checked && cooldownSelect.value === '') {
+            e.preventDefault();
+            cooldownError.style.display = '';
+            cooldownSelect.focus();
+        }
+    });
+
     toggleDateInputs();
+    toggleChunkedRow();
 })();
 </script>
 {% endblock %}

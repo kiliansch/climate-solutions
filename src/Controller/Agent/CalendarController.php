@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Agent;
 
+use App\Dto\SlotDTO;
 use App\Entity\Calendar;
 use App\Entity\Slot;
 use App\Entity\User;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/agent')]
 #[IsGranted('ROLE_AGENT')]
@@ -28,6 +30,7 @@ class CalendarController extends AbstractController
         private readonly SlotRepository $slotRepository,
         private readonly UserRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly ValidatorInterface $validator,
     ) {
     }
 
@@ -112,6 +115,9 @@ class CalendarController extends AbstractController
         $locationRaw = $request->request->get('location');
         $location = (is_string($locationRaw) && $locationRaw !== '') ? $locationRaw : null;
         $continent = 'Europe';
+        $allowChunkedBooking = (bool) $request->request->get('allowChunkedBooking', false);
+        $cooldownRaw = $request->request->get('chunkCooldownMinutes');
+        $chunkCooldownMinutes = (is_string($cooldownRaw) && $cooldownRaw !== '') ? (int) $cooldownRaw : null;
 
         try {
             $startAt = (new \DateTimeImmutable($startAtRaw))->setTimezone(new \DateTimeZone('UTC'));
@@ -133,12 +139,31 @@ class CalendarController extends AbstractController
             return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
         }
 
+        $dto = new SlotDTO(
+            type: $type,
+            startAt: $startAt,
+            endAt: $endAt,
+            location: $location,
+            continent: $continent,
+            allowChunkedBooking: $allowChunkedBooking,
+            chunkCooldownMinutes: $chunkCooldownMinutes,
+        );
+
+        $violations = $this->validator->validate($dto);
+        if (count($violations) > 0) {
+            $this->addFlash('error', (string) $violations->get(0)->getMessage());
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
         $slot = new Slot();
         $slot->setType($type);
         $slot->setStartAt($startAt);
         $slot->setEndAt($endAt);
         $slot->setLocation($location);
         $slot->setContinent($continent);
+        $slot->setAllowChunkedBooking($allowChunkedBooking);
+        $slot->setChunkCooldownMinutes($chunkCooldownMinutes);
         $slot->setCalendar($calendar);
 
         $this->entityManager->persist($slot);
