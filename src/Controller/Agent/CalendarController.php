@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller\Agent;
 
+use App\CalendarBundle\Repository\BookingRequestRepository;
+use App\Dto\ActivityDTO;
 use App\Dto\SlotDTO;
+use App\Entity\Activity;
 use App\Entity\Calendar;
 use App\Entity\Slot;
 use App\Entity\User;
-use App\CalendarBundle\Repository\BookingRequestRepository;
+use App\Repository\ActivityRepository;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
 use App\Repository\UserRepository;
@@ -31,6 +34,7 @@ class CalendarController extends AbstractController
         private readonly UserRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
+        private readonly ActivityRepository $activityRepository,
     ) {
     }
 
@@ -54,14 +58,17 @@ class CalendarController extends AbstractController
     {
         $name = trim((string) $request->request->get('name', ''));
         $displayMode = (string) $request->request->get('displayMode', 'dayslot');
-        $clientId = (int) $request->request->get('clientId', 0);
+        $clientIdRaw = $request->request->get('clientId');
+        $clientId = ($clientIdRaw !== null && $clientIdRaw !== '' && $clientIdRaw !== '0') ? (int) $clientIdRaw : null;
 
-        $client = $this->userRepository->find($clientId);
+        $client = null;
+        if ($clientId !== null) {
+            $client = $this->userRepository->find($clientId);
+            if ($client === null) {
+                $this->addFlash('error', 'Client not found.');
 
-        if ($client === null) {
-            $this->addFlash('error', 'Client not found.');
-
-            return $this->redirectToRoute('agent_calendar_list');
+                return $this->redirectToRoute('agent_calendar_list');
+            }
         }
 
         /** @var User $agent */
@@ -92,11 +99,13 @@ class CalendarController extends AbstractController
 
         $slots = $this->slotRepository->findOpenByCalendar($calendar);
         $canEdit = !$this->bookingRequestRepository->hasAcceptedBookingsForCalendar($calendar);
+        $activities = $this->activityRepository->findByCalendar($calendar);
 
         return $this->render('agent/calendar/show.html.twig', [
             'calendar' => $calendar,
             'slots' => $slots,
             'canEdit' => $canEdit,
+            'activities' => $activities,
         ]);
     }
 
@@ -256,6 +265,97 @@ class CalendarController extends AbstractController
         if ($calendar === null) {
             throw $this->createNotFoundException('Calendar not found.');
         }
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+    }
+
+    #[Route('/calendars/{id}/activities', name: 'agent_activity_create', methods: ['POST'])]
+    public function createActivity(int $id, Request $request): Response
+    {
+        $calendar = $this->findCalendarForCurrentAgent($id);
+
+        if ($calendar === null) {
+            throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        $name = trim((string) $request->request->get('name', ''));
+        $description = $request->request->get('description');
+        $description = (is_string($description) && $description !== '') ? $description : null;
+
+        $dto = new ActivityDTO(name: $name, description: $description);
+        $violations = $this->validator->validate($dto);
+        if (count($violations) > 0) {
+            $this->addFlash('error', (string) $violations->get(0)->getMessage());
+
+            return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+        }
+
+        $activity = new Activity();
+        $activity->setName($dto->name);
+        $activity->setDescription($dto->description);
+        $activity->setCalendar($calendar);
+
+        $this->entityManager->persist($activity);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', sprintf('Activity "%s" created.', $activity->getName()));
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+    }
+
+    #[Route('/calendars/{id}/activities/{actId}', name: 'agent_activity_delete', methods: ['DELETE'])]
+    public function deleteActivity(int $id, int $actId, Request $request): Response
+    {
+        $calendar = $this->findCalendarForCurrentAgent($id);
+
+        if ($calendar === null) {
+            throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        $activity = $this->activityRepository->find($actId);
+
+        if ($activity === null || $activity->getCalendar()->getId() !== $calendar->getId()) {
+            throw $this->createAccessDeniedException('Activity does not belong to this calendar.');
+        }
+
+        $this->entityManager->remove($activity);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', sprintf('Activity "%s" deleted.', $activity->getName()));
+
+        return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
+    }
+
+    #[Route('/calendars/{id}/slots/{slotId}/activity', name: 'agent_slot_update_activity', methods: ['PATCH'])]
+    public function updateSlotActivity(int $id, int $slotId, Request $request): Response
+    {
+        $calendar = $this->findCalendarForCurrentAgent($id);
+
+        if ($calendar === null) {
+            throw $this->createNotFoundException('Calendar not found.');
+        }
+
+        $slot = $this->slotRepository->find($slotId);
+
+        if ($slot === null || $slot->getCalendar()->getId() !== $calendar->getId()) {
+            throw $this->createNotFoundException('Slot not found.');
+        }
+
+        $activityIdRaw = $request->request->get('activityId');
+        $activityId = ($activityIdRaw !== null && $activityIdRaw !== '') ? (int) $activityIdRaw : null;
+
+        $activity = null;
+        if ($activityId !== null) {
+            $activity = $this->activityRepository->find($activityId);
+            if ($activity === null || $activity->getCalendar()->getId() !== $calendar->getId()) {
+                throw $this->createAccessDeniedException('Activity does not belong to this calendar.');
+            }
+        }
+
+        $slot->setActivity($activity);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', 'Slot activity updated.');
 
         return $this->redirectToRoute('agent_calendar_show', ['id' => $id]);
     }

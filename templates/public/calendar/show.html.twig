@@ -129,8 +129,8 @@
         {% endfor %}
 
         <div class="page-heading">
-            <h1>{{ calendar.name }}</h1>
-            <p class="client-name">{{ calendar.client.name ?? calendar.client.email }}</p>
+            <h1>{{ calendar.name }}{% if activities is not empty %} — {% for a in activities %}{% if not loop.first %}, {% endif %}{{ a.name }}{% endfor %}{% endif %}</h1>
+            <p class="client-name">{% if calendar.client %}{{ calendar.client.name ?? calendar.client.email }}{% endif %}</p>
         </div>
 
         <div id="calendar-holder"></div>
@@ -184,7 +184,7 @@
                     url: '/fc-load-events',
                     method: 'POST',
                     extraParams: {
-                        filters: JSON.stringify({ token: '{{ calendar.publicToken }}', viewType: 'public' })
+                        filters: JSON.stringify({ token: '{{ calendar.publicToken }}', viewType: 'public'{% if activityIds is not empty %}, activityIds: {{ activityIds|json_encode|raw }}{% endif %} })
                     },
                     failure: function () { console.error('Failed to load calendar events.'); }
                 }],

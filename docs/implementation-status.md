@@ -218,3 +218,45 @@
 ## Bug Fixes / Feature Gaps — Time Slot Rendering ✅
 
 - **Time-type slots render as timed blocks in the shared FullCalendar view.** `CalendarSubscriber` passes real `startAt`/`endAt` `DateTime` values for time-type slots and explicitly includes `'allDay' => false` in the event options array; FullCalendar infers `allDay=false` from the non-midnight times and renders the event spanning the correct time range. Day-type slots remain all-day bars (`'allDay'` not set, end passed as `null`). `timeGridWeek`/`timeGridDay` views were added to the FullCalendar toolbar in `templates/public/calendar/show.html.twig`, so timed views are available even though the template still uses its existing default `initialView`. Note: any time-type slot accidentally stored with midnight `startAt`/`endAt` (prior to the BF1.1 guard being time-type-aware) would still render as an all-day event in older browsers without the explicit `allDay: false` flag; the explicit flag covers this edge case.
+
+## ROLE_SOLO_AGENT — Activity Management & Filtered Share Links ✅
+
+### Security
+- `security.yaml` role hierarchy: `ROLE_SOLO_AGENT: [ROLE_AGENT]` — solo agents inherit all ROLE_AGENT routes
+
+### Entities
+- **Activity**: id (auto-increment), name (string 255, not null), description (nullable text), calendar (ManyToOne → Calendar, not null, onDelete CASCADE), createdAt (datetimetz_immutable, set on prePersist UTC) — composite index on (calendar_id, name)
+- **Calendar.client** changed to nullable (ManyToOne → User, onDelete SET NULL); solo agent calendars have client = null
+- **Slot.activity**: nullable ManyToOne → Activity (onDelete SET NULL) — migration `Version20260405175537`
+
+### Services
+- **ActivityRepository::findByCalendar(Calendar $calendar): Activity[]** — ordered by name ASC
+- **SlotRepository::findOpenByCalendar** updated to accept `?Activity $activity = null`; when provided adds `WHERE s.activity = :activity` filter; existing callers (no second arg) unchanged
+- **CalendarSubscriber** updated: reads optional `activityId` from FullCalendar event-source filters, validates it belongs to the calendar, filters event output to matching slots only
+
+### Controllers / Routes
+- **POST `/agent/calendars/{id}/activities`** (`agent_activity_create`) — validates ActivityDTO (name NotBlank), persists Activity, redirect with flash
+- **DELETE `/agent/calendars/{id}/activities/{actId}`** (`agent_activity_delete`) — verifies activity.calendar === current calendar (403 if not), remove + flush, redirect with flash
+- **PATCH `/agent/calendars/{id}/slots/{slotId}/activity`** (`agent_slot_update_activity`) — reads `activityId` (nullable int) from request body, loads + validates activity ownership, calls `slot.setActivity()`, flush, redirect with flash
+- **GET `/c/{token}?activity={id}`** — same `calendar_public_view` route; reads optional `?activity` query param; 404 for unknown or foreign activity; passes `$activity` (nullable) to `CalendarSubscriber` via FullCalendar `extraParams.filters.activityId`; template heading shows activity name when filtered
+
+### Templates
+- **templates/agent/calendar/show.html.twig** updated (non-destructive additions): slots table gains "Activity" column with inline `<select>` that auto-submits a PATCH form to `agent_slot_update_activity`; Activities section added (table with name, description, activity-filtered share link, delete button; "No activities yet" empty state); "Add Activity" form (name, optional description); sidebar skips "Client" row when `calendar.client` is null; page header also null-safe on client
+- **templates/agent/calendar/index.html.twig** updated: client cell shows "—" for null client
+- **templates/public/calendar/show.html.twig** updated: heading appends "— {activity.name}" when activity filter active; client-name paragraph null-safe; FullCalendar `extraParams.filters` includes `activityId` when activity param present
+
+### Developer Tooling
+- **DatabaseSeeder** updated (single flush maintained): seeds `solo@example.com` (ROLE_SOLO_AGENT, active), "Solo Calendar" (agent=soloAgent, client=null), activities "Consultation" + "Workshop", 2 time-type open slots each tagged to one activity; idempotent via `findOrCreateSoloCalendar` + `ensureActivities` helpers
+
+### Activity Share Links — multi-activity filter ✅
+- `SlotRepository::findOpenByCalendar` signature changed to `array $activityIds = []`; when non-empty adds `WHERE s.activity IN (:activityIds)`; empty array returns all open slots (no regression).
+- `CalendarSubscriber` reads `activityIds` (int array) from `extraParams.filters.activityIds`; validates each ID belongs to the calendar; filters slots via `in_array` in PHP.
+- `GET /c/{token}?activityIds=1,3` parses comma-separated IDs; 404 on any unknown or foreign activity ID; empty/absent param returns all slots; old `?activityId` (singular) param silently ignored.
+- Agent calendar show template: "Share Link" column removed; activity share box added with "Share All" copy button, per-activity checkboxes, and "Copy filtered link" button (disabled until at least one checkbox is checked; builds `?activityIds=id1,id2`).
+- Public calendar heading lists all filtered activity names comma-joined when filter is active.
+
+### Activity public tokens ✅
+- `Activity.publicToken` added (VARCHAR 36, unique, UUID v4 generated on prePersist) — mirrors the `Calendar.publicToken` pattern; integer IDs are never exposed in public URLs.
+- `ActivityRepository::findByPublicToken(string $token): ?Activity` — lookup by public token.
+- Migration `Version20260406130111`: adds column nullable, backfills via PostgreSQL `gen_random_uuid()`, sets NOT NULL, adds unique index.
+- `GET /c/{token}?activityTokens=uuid1,uuid2` — replaces `?activityIds=...`; 404 on unknown token or token belonging to a different calendar; old `?activityIds` param silently ignored.
