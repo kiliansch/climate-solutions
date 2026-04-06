@@ -54,6 +54,10 @@ class Slot
     #[ORM\JoinColumn(nullable: false)]
     private Calendar $calendar;
 
+    #[ORM\ManyToOne(targetEntity: Activity::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Activity $activity = null;
+
     #[ORM\Column(type: 'datetimetz_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -172,6 +176,18 @@ class Slot
     public function setCalendar(Calendar $calendar): static
     {
         $this->calendar = $calendar;
+
+        return $this;
+    }
+
+    public function getActivity(): ?Activity
+    {
+        return $this->activity;
+    }
+
+    public function setActivity(?Activity $activity): static
+    {
+        $this->activity = $activity;
 
         return $this;
     }

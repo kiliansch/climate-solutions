@@ -6,6 +6,7 @@ namespace App\EventSubscriber;
 
 use App\CalendarBundle\Repository\SlotUnavailabilityRepository;
 use App\CalendarBundle\Repository\UnavailabilityRepository;
+use App\Repository\ActivityRepository;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
 use CalendarBundle\Entity\Event;
@@ -19,6 +20,7 @@ class CalendarSubscriber implements EventSubscriberInterface
         private readonly SlotRepository $slotRepository,
         private readonly UnavailabilityRepository $unavailabilityRepository,
         private readonly SlotUnavailabilityRepository $slotUnavailabilityRepository,
+        private readonly ActivityRepository $activityRepository,
     ) {
     }
 
@@ -37,6 +39,16 @@ class CalendarSubscriber implements EventSubscriberInterface
 
         $token = is_string($filters['token'] ?? null) ? $filters['token'] : null;
         $viewType = is_string($filters['viewType'] ?? null) ? $filters['viewType'] : null;
+        $activityIdsRaw = $filters['activityIds'] ?? [];
+        $activityIds = [];
+        if (is_array($activityIdsRaw)) {
+            foreach ($activityIdsRaw as $rawId) {
+                $id = is_scalar($rawId) ? (int) $rawId : 0;
+                if ($id > 0) {
+                    $activityIds[] = $id;
+                }
+            }
+        }
 
         if ($token === null) {
             return;
@@ -47,10 +59,26 @@ class CalendarSubscriber implements EventSubscriberInterface
             return;
         }
 
+        $filterActivityIds = [];
+        foreach ($activityIds as $id) {
+            $act = $this->activityRepository->find($id);
+            if ($act === null || $act->getCalendar()->getId() !== $calendar->getId()) {
+                return;
+            }
+            $filterActivityIds[] = $id;
+        }
+
         $startImmutable = \DateTimeImmutable::createFromMutable($start)->setTimezone(new \DateTimeZone('UTC'));
         $endImmutable = \DateTimeImmutable::createFromMutable($end)->setTimezone(new \DateTimeZone('UTC'));
 
         $slots = $this->slotRepository->findByCalendarAndDateRange($calendar, $startImmutable, $endImmutable);
+
+        if ($filterActivityIds !== []) {
+            $slots = array_values(array_filter(
+                $slots,
+                static fn($slot): bool => in_array($slot->getActivity()?->getId(), $filterActivityIds, true),
+            ));
+        }
 
         // Preload blocked dates for all open multi-day day-slots in a single query
         $multiDayOpenSlots = array_values(array_filter(

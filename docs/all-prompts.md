@@ -1753,4 +1753,157 @@ In docs/implementation-status.md under Entities → Slot, append:
   chunked booking is on; booking logic not yet wired (storage only).
 
 ---
+
+# Solo agent addition with activity management
+
+CONTEXT
+Read docs/implementation-status.md and .github/copilot-instructions.md before starting.
+Do not re-create anything already listed as completed.
+Depends on: ROLE_SOLO_AGENT prompt (Calendar.client nullable, role hierarchy in security.yaml).
+
+TASK
+Three additions for ROLE_SOLO_AGENT: (1) Activity entity and management, (2) activity-scoped public share links, (3) seeder support.
+
+---
+
+## 1. Activity Entity
+
+Create src/Entity/Activity.php:
+- id: int, auto-increment
+- name: string, not null
+- description: nullable string
+- calendar: ManyToOne → Calendar, not null, onDelete CASCADE
+- createdAt: datetimetz_immutable, set on prePersist (UTC)
+
+ORM: PHP 8 attributes only. Composite index on (calendar_id, name).
+
+Create src/Repository/ActivityRepository.php:
+- findByCalendar(Calendar $calendar): Activity[]  — ordered by name ASC
+
+Generate a Doctrine migration.
+
+---
+
+## 2. Calendar Share Token — Activity Filter
+
+The existing Calendar.publicToken gives unrestricted access to all open slots.
+Solo agents need per-activity share links that show only slots tagged to a specific activity.
+
+Add to Calendar entity:
+- No schema change needed — the filter is passed as a query parameter on the existing public URL.
+
+Add to Slot entity:
+- activity: ManyToOne → Activity, nullable, onDelete SET NULL
+
+Generate a Doctrine migration for Slot.activity_id (nullable FK).
+
+Update SlotRepository::findOpenByCalendar(Calendar $calendar, ?Activity $activity = null): Slot[]
+- When $activity is provided, add WHERE slot.activity = :activity to the query.
+- Existing callers pass no second argument — behaviour unchanged.
+
+Update PublicCalendarController GET /{token}:
+- Read optional query param ?activity={id} (integer).
+- If present, load Activity by id; 404 if not found or does not belong to this calendar.
+- Pass $activity to SlotRepository::findOpenByCalendar.
+- Pass $activity (nullable) to the Twig template so the heading can reflect the filter.
+
+No new route — same calendarpublicview route, same token, optional query param.
+
+---
+
+## 3. Agent UI — Activity Management
+
+Add to AgentCalendarController (already ROLE_AGENT | ROLE_SOLO_AGENT via role hierarchy):
+
+POST   agent/calendars/{id}/activities          → agentactivitycreate
+DELETE agent/calendars/{id}/activities/{actId}  → agentactivitydelete
+
+ActivityDTO (src/Dto/ActivityDTO.php):
+- name: string, NotBlank
+- description: nullable string
+
+POST handler: validate ActivityDTO via MapRequestPayload, persist Activity for this calendar, redirect to agentcalendarshow with flash success.
+DELETE handler: verify activity.calendar === current calendar (403 if not), remove, flush, redirect with flash success.
+
+Add to AgentCalendarController GET agent/calendars/{id} (existing route):
+- Pass $activities = ActivityRepository::findByCalendar($calendar) to the template.
+
+Update templates/agent/calendar_show.html.twig — non-destructive additions only:
+- Activities table: name, description, delete button (methodDELETE override). Show "No activities yet" empty state if empty.
+- Add-activity form: name input, description textarea (optional), submit.
+- Per-slot row: activity select (nullable — "None" as default) bound to slot.activity. On change, POST to a new PATCH agent/calendars/{id}/slots/{slotId}/activity route (see below).
+
+Add to AgentCalendarController:
+PATCH agent/calendars/{id}/slots/{slotId}/activity → agentslotupdateactivity
+- Read activityId (nullable int) from request body.
+- Load Activity if provided; verify it belongs to this calendar (403 if not).
+- Set slot.activity; flush. Redirect with flash.
+
+Add to templates/agent/calendar_show.html.twig:
+- Share link section: for each activity, show a "Share for [Activity name]" link that appends ?activity={id} to the existing public URL. Label it clearly as an activity-filtered view.
+
+---
+
+## 4. Seeder
+
+Update src/DataFixtures/DatabaseSeeder.php — idempotent, only append:
+
+Add one solo agent:
+- email: solo@example.com, name: Solo Agent, role: ROLE_SOLO_AGENT, status: active
+- One Calendar with agent = soloAgent, client = null, name: "Solo Calendar"
+- Two Activities on that calendar: "Consultation" and "Workshop"
+- Two open time-type Slots on that calendar, each assigned to one of the activities, startAt/endAt in UTC future dates
+
+Existing seeds (admin, two agents, two clients, two calendars) must remain untouched.
+Single flush at the end — do not flush inside loops.
+
+---
+
+## CONSTRAINTS
+Do NOT change:
+- UnavailabilityService, ClientCalendarController, BookingService
+- PublicCalendarController beyond the ?activity param addition described above
+- Any existing template outside templates/agent/calendar_show.html.twig
+- Any existing migration or entity field that is already complete
+
+PSR-12, declare(strict_types=1), PHP 8 attributes, constructor injection throughout.
+
+---
+
+## DONE WHEN
+- Migration applies cleanly: Slot.activity_id nullable FK, Activity table with composite index.
+- GET /c/{token} renders all open slots (no activity param).
+- GET /c/{token}?activity=1 renders only slots tagged to activity id=1; 404 for unknown or foreign activity.
+- Solo agent can create/delete activities on their calendar.
+- Solo agent can assign an activity to a slot.
+- Per-activity share links appear in the agent calendar view.
+- php bin/console app:db:fresh seeds successfully including solo@example.com with two activities and two slots.
+- composer phpstan passes at level 10.
+- composer cs-check passes.
+
+---
+
+UPDATE DOCS
+Append to docs/implementation-status.md:
+
+Entities:
+- Activity: id, name, description, calendar ManyToOne, createdAt — index on (calendar_id, name)
+- Slot.activity: nullable ManyToOne Activity (onDelete SET NULL)
+
+Services:
+- ActivityRepository::findByCalendar(Calendar): Activity[]
+- SlotRepository::findOpenByCalendar updated — optional ?Activity $activity filter
+
+Controllers/Routes:
+- POST   agent/calendars/{id}/activities         agentactivitycreate
+- DELETE agent/calendars/{id}/activities/{actId} agentactivitydelete
+- PATCH  agent/calendars/{id}/slots/{slotId}/activity agentslotupdateactivity
+- GET    /c/{token}?activity={id}                activity-filtered public view (no new route)
+
+Developer Tooling:
+- DatabaseSeeder updated: solo@example.com ROLE_SOLO_AGENT, Solo Calendar (client=null), activities Consultation + Workshop, 2 tagged slots
+
+Mark this prompt complete.
+
+
 ## End of Archive

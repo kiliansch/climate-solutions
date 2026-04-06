@@ -25,12 +25,20 @@ class AgentInvitationController extends AbstractController
     #[Route('/invite-client', name: 'agent_invite_client', methods: ['GET'])]
     public function showForm(): Response
     {
+        if ($this->isGranted('ROLE_SOLO_AGENT')) {
+            throw $this->createAccessDeniedException('Solo agents cannot invite clients.');
+        }
+
         return $this->render('agent/invite_client.html.twig');
     }
 
     #[Route('/invite-client', name: 'agent_invite_client_post', methods: ['POST'])]
     public function invite(#[MapRequestPayload] InviteUserDTO $dto): Response
     {
+        if ($this->isGranted('ROLE_SOLO_AGENT')) {
+            throw $this->createAccessDeniedException('Solo agents cannot invite clients.');
+        }
+
         /** @var User $agent */
         $agent = $this->getUser();
 

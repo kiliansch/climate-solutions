@@ -24,6 +24,11 @@
     .badge-closed   { background: #f3f4f6; color: #6b7280; }
     .badge-booked   { background: #dbeafe; color: #1e40af; }
     .badge-overridden { background: #fee2e2; color: #991b1b; }
+    .activity-select { padding: .25rem .4rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .78rem; background: #fff; max-width: 140px; }
+    .share-links { list-style: none; padding: 0; margin: 0; }
+    .share-links li { margin-bottom: .4rem; }
+    .share-links a { font-size: .85rem; color: #059669; text-decoration: none; }
+    .share-links a:hover { text-decoration: underline; }
     table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
     th, td { padding: .65rem .9rem; text-align: left; font-size: .875rem; border-bottom: 1px solid #e8f0e8; }
     th { background: #1b4332; color: #fff; font-weight: 600; }
@@ -53,6 +58,7 @@
     .edit-note { font-size: .8rem; color: #9ca3af; margin-top: .5rem; }
     .checkbox-label { display: flex; align-items: center; gap: .4rem; font-size: .875rem; font-weight: 600; color: #374151; cursor: pointer; }
     .checkbox-label input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; }
+    .activity-checkboxes { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin-bottom: .75rem; }
     .field-error { display: none; color: #dc2626; font-size: .75rem; margin-top: .2rem; }
 </style>
 {% endblock %}
@@ -66,8 +72,7 @@
             <div>
                 <h1>{{ calendar.name }}</h1>
                 <span class="meta">
-                    Client: <strong>{{ calendar.client.name ?? calendar.client.email }}</strong>
-                    &nbsp;·&nbsp;
+                    {% if calendar.client %}Client: <strong>{{ calendar.client.name ?? calendar.client.email }}</strong>&nbsp;·&nbsp;{% endif %}
                     <span class="badge badge-{{ calendar.displayMode }}">{{ calendar.displayMode }}</span>
                     &nbsp;·&nbsp;
                     Created {{ calendar.createdAt|date('Y-m-d') }}
@@ -91,6 +96,20 @@
                 onclick="copyShareUrl(this, document.getElementById('share-url').value)"
             >Copy Link</button>
         </div>
+        {% if activities is not empty %}
+        <div style="margin-top:.75rem;">
+            <div class="activity-checkboxes" id="activity-checkboxes">
+                {% for act in activities %}
+                <label class="checkbox-label">
+                    <input type="checkbox" class="activity-check" value="{{ act.publicToken }}">
+                    {{ act.name }}
+                </label>
+                {% endfor %}
+            </div>
+            <button type="button" class="btn btn-copy" id="btn-copy-filtered" disabled
+                onclick="copyFilteredLink(this)">Copy filtered link</button>
+        </div>
+        {% endif %}
 
         {# Edit calendar form #}
         <h2>Edit Calendar</h2>
@@ -129,6 +148,7 @@
                     <th>Status</th>
                     <th>Location</th>
                     <th>Continent</th>
+                    <th>Activity</th>
                     <th>Chunked</th>
                     <th></th>
                 </tr>
@@ -142,6 +162,17 @@
                     <td><span class="badge badge-{{ slot.status }}">{{ slot.status }}</span></td>
                     <td>{{ slot.location ?? '—' }}</td>
                     <td>{{ slot.continent ?? '—' }}</td>
+                    <td>
+                        <form method="post" action="{{ path('agent_slot_update_activity', {id: calendar.id, slotId: slot.id}) }}">
+                            <input type="hidden" name="_method" value="PATCH">
+                            <select name="activityId" class="activity-select" onchange="this.form.submit()">
+                                <option value="">— None —</option>
+                                {% for act in activities %}
+                                <option value="{{ act.id }}" {% if slot.activity and slot.activity.id == act.id %}selected{% endif %}>{{ act.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
                     <td>{% if slot.allowChunkedBooking %}Chunked · {{ slot.chunkCooldownMinutes }} min{% else %}—{% endif %}</td>
                     <td>
                         {% if slot.status != 'booked' %}
@@ -155,7 +186,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8">No slots yet. Add one below.</td>
+                    <td colspan="9">No slots yet. Add one below.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -218,6 +249,54 @@
                 <button type="submit" class="btn btn-primary">Add Slot</button>
             </form>
         </div>
+
+        {# Activities #}
+        <h2>Activities</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in activities %}
+                <tr>
+                    <td>{{ act.name }}</td>
+                    <td>{{ act.description ?? '—' }}</td>
+                    <td>
+                        <form method="post" action="{{ path('agent_activity_delete', {id: calendar.id, actId: act.id}) }}">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete activity &quot;{{ act.name|e('js') }}&quot;?')">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3">No activities yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {# Add Activity form #}
+        <h2>Add Activity</h2>
+        <div class="slot-form">
+            <form method="post" action="{{ path('agent_activity_create', {id: calendar.id}) }}">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="act-name">Name</label>
+                        <input type="text" id="act-name" name="name" required maxlength="255" placeholder="e.g. Consultation">
+                    </div>
+                    <div class="form-field">
+                        <label for="act-description">Description (optional)</label>
+                        <input type="text" id="act-description" name="description" maxlength="500" placeholder="Short description">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Activity</button>
+            </form>
+        </div>
     </div>
 
     {# Sidebar #}
@@ -232,10 +311,12 @@
                 <span class="label">Mode</span>
                 <span class="badge badge-{{ calendar.displayMode }}">{{ calendar.displayMode }}</span>
             </div>
+            {% if calendar.client %}
             <div class="info-row">
                 <span class="label">Client</span>
                 <span>{{ calendar.client.name ?? calendar.client.email }}</span>
             </div>
+            {% endif %}
             <div class="info-row">
                 <span class="label">Open slots</span>
                 <span>{{ slots|length }}</span>
@@ -261,6 +342,33 @@ function copyShareUrl(button, url) {
         }, 2000);
     });
 }
+
+function copyFilteredLink(button) {
+    var checked = Array.from(document.querySelectorAll('.activity-check:checked')).map(function (cb) { return cb.value; });
+    if (checked.length === 0) return;
+    var url = '{{ url('calendar_public_view', {token: calendar.publicToken}) }}' + '?activityTokens=' + checked.join(',');
+    navigator.clipboard.writeText(url).then(function () {
+        var original = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(function () {
+            button.textContent = original;
+            updateCopyFilteredButton();
+        }, 2000);
+    });
+}
+
+function updateCopyFilteredButton() {
+    var btn = document.getElementById('btn-copy-filtered');
+    if (btn) {
+        btn.disabled = document.querySelectorAll('.activity-check:checked').length === 0;
+    }
+}
+
+(function () {
+    document.querySelectorAll('.activity-check').forEach(function (cb) {
+        cb.addEventListener('change', updateCopyFilteredButton);
+    });
+}());
 
 (function () {
     var typeSelect = document.getElementById('type');

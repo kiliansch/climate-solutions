@@ -31,8 +31,8 @@ class Calendar
     private string $displayMode = 'dayslot';
 
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false)]
-    private User $client;
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $client = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false)]
@@ -89,12 +89,12 @@ class Calendar
         return $this;
     }
 
-    public function getClient(): User
+    public function getClient(): ?User
     {
         return $this->client;
     }
 
-    public function setClient(User $client): static
+    public function setClient(?User $client): static
     {
         $this->client = $client;
 

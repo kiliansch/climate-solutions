@@ -6,6 +6,7 @@ namespace App\Controller\Public;
 
 use App\CalendarBundle\Dto\BookingRequestDTO;
 use App\CalendarBundle\Service\BookingService;
+use App\Repository\ActivityRepository;
 use App\Repository\CalendarRepository;
 use App\Repository\SlotRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,11 +21,12 @@ class CalendarController extends AbstractController
         private readonly CalendarRepository $calendarRepository,
         private readonly SlotRepository $slotRepository,
         private readonly BookingService $bookingService,
+        private readonly ActivityRepository $activityRepository,
     ) {
     }
 
     #[Route('/c/{token}', name: 'calendar_public_view', methods: ['GET'])]
-    public function show(string $token): Response
+    public function show(string $token, Request $request): Response
     {
         $calendar = $this->calendarRepository->findByPublicToken($token);
 
@@ -32,8 +34,25 @@ class CalendarController extends AbstractController
             throw $this->createNotFoundException('Calendar not found.');
         }
 
+        $activityIds = [];
+        $activities = [];
+        $rawParam = $request->query->getString('activityTokens');
+        if ($rawParam !== '') {
+            $parts = array_filter(explode(',', $rawParam), static fn(string $s): bool => $s !== '');
+            foreach ($parts as $activityToken) {
+                $activity = $this->activityRepository->findByPublicToken($activityToken);
+                if ($activity === null || $activity->getCalendar()->getId() !== $calendar->getId()) {
+                    throw $this->createNotFoundException('Activity not found.');
+                }
+                $activities[] = $activity;
+                $activityIds[] = $activity->getId();
+            }
+        }
+
         return $this->render('public/calendar/show.html.twig', [
             'calendar' => $calendar,
+            'activities' => $activities,
+            'activityIds' => $activityIds,
         ]);
     }
 

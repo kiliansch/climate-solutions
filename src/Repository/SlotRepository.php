@@ -20,18 +20,24 @@ class SlotRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param int[] $activityIds When non-empty, only slots belonging to one of these activity IDs are returned.
      * @return Slot[]
      */
-    public function findOpenByCalendar(Calendar $calendar): array
+    public function findOpenByCalendar(Calendar $calendar, array $activityIds = []): array
     {
-        return $this->createQueryBuilder('s')
+        $qb = $this->createQueryBuilder('s')
             ->andWhere('s.calendar = :calendar')
             ->andWhere('s.status = :status')
             ->setParameter('calendar', $calendar)
             ->setParameter('status', 'open')
-            ->orderBy('s.startAt', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('s.startAt', 'ASC');
+
+        if ($activityIds !== []) {
+            $qb->andWhere('s.activity IN (:activityIds)')
+               ->setParameter('activityIds', $activityIds);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     public function hasOverriddenSlots(Calendar $calendar): bool
