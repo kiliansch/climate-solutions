@@ -36,7 +36,7 @@ RUN groupadd -g ${GID} appuser \
 
 WORKDIR /var/www/html
 
-RUN mkdir -p /var/www/html && chown -R appuser:appuser /var/www/html
+RUN mkdir -p /var/www/html/vendor && chown -R appuser:appuser /var/www/html
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
 COPY docker/php/entrypoint.sh /entrypoint.sh
