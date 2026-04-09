@@ -1,8 +1,23 @@
 
 services:
 
+  # Apple Silicon (M1/M2): move vendor/ into a Docker-managed volume to avoid
+  # VirtioFS errno=35 "Resource deadlock avoided" during composer install.
+  php:
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+
+  nginx:
+    volumes:
+      - .:/var/www/html:ro
+      - vendor:/var/www/html/vendor:ro
+
 ###> doctrine/doctrine-bundle ###
   database:
     ports:
       - "5432"
 ###< doctrine/doctrine-bundle ###
+
+volumes:
+  vendor:
